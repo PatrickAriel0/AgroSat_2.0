@@ -1,0 +1,50 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-brand-bg text-brand-text-body font-body antialiased;
+    background-color: #050c05;
+    background-image: radial-gradient(circle at 50% 0%, rgba(34, 197, 94, 0.08) 0%, transparent 60%);
+    min-height: 100vh;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-heading tracking-wide text-brand-text-title;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #050c05;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(74, 222, 128, 0.2);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(74, 222, 128, 0.4);
+}
+
+/* Botões de zoom do mapa com área de toque maior (MapLibre) */
+.maplibregl-ctrl-group .maplibregl-ctrl-zoom-in,
+.maplibregl-ctrl-group .maplibregl-ctrl-zoom-out {
+  width: 40px !important;
+  height: 40px !important;
+  background-color: #0d1f0d !important;
+  color: #e8f5e8 !important;
+  border-color: rgba(74, 222, 128, 0.2) !important;
+}
+.maplibregl-ctrl-group .maplibregl-ctrl-zoom-in:hover,
+.maplibregl-ctrl-group .maplibregl-ctrl-zoom-out:hover {
+  background-color: #122613 !important;
+}
+.maplibregl-ctrl-group {
+  border: 1px solid rgba(74, 222, 128, 0.2) !important;
+  border-radius: 8px !important;
+  overflow: hidden;
+}
