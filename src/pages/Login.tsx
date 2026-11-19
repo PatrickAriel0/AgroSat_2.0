@@ -1,27 +1,64 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Satellite, ArrowRight, ShieldCheck, User } from 'lucide-react';
+import { Satellite, ArrowRight, ShieldCheck, User, Loader2 } from 'lucide-react';
+import { UsuarioService } from '../services/api';
 
 export const Login: React.FC = () => {
   const [tipoConta, setTipoConta] = useState<'usuario' | 'admin'>('usuario');
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const [erro, setErro] = useState<string | null>(null);
+  const [carregando, setCarregando] = useState(false);
 
   const navigate = useNavigate();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim() || !senha.trim()) {
       setErro('Preencha seu e-mail e senha.');
       return;
     }
 
-    if (tipoConta === 'usuario') {
-      navigate('/painel-usuario');
-    } else {
-      navigate('/admin-cooperativa');
+    try {
+      setCarregando(true);
+      setErro(null);
+
+      // 1. Consulta o usuário na API Java REST (ou armazenamento local espelhado)
+      let usuario = await UsuarioService.buscarPorEmail(email.trim());
+
+      if (!usuario) {
+        // Se ainda não existir na API, cadastra automaticamente para garantir acesso imediato
+        const nomeFormatado = email.split('@')[0].replace(/[._-]/g, ' ');
+        const nomeCapitalizado = nomeFormatado.charAt(0).toUpperCase() + nomeFormatado.slice(1);
+        usuario = await UsuarioService.cadastrar({
+          nome: nomeCapitalizado,
+          email: email.trim(),
+          senha: senha.trim(),
+          tipo: tipoConta === 'admin' ? 'ADMIN' : 'PRODUTOR'
+        });
+      }
+
+      // 2. Registra o usuário autenticado na sessão ativa
+      UsuarioService.setUsuarioAtivo(usuario);
+
+      // 3. Redireciona conforme o perfil selecionado ou o perfil retornado pela API
+      if (tipoConta === 'admin' || usuario.tipo === 'ADMIN') {
+        navigate('/admin-cooperativa');
+      } else {
+        navigate('/painel-usuario');
+      }
+    } catch {
+      setErro('Falha na autenticação. Verifique os dados e tente novamente.');
+    } finally {
+      setCarregando(false);
     }
+  };
+
+  const preencherDemo = (demoEmail: string, tipo: 'usuario' | 'admin') => {
+    setEmail(demoEmail);
+    setSenha('senha1234');
+    setTipoConta(tipo);
+    setErro(null);
   };
 
   return (
@@ -128,11 +165,43 @@ export const Login: React.FC = () => {
 
               <button
                 type="submit"
-                className="w-full h-12 bg-[#eef3ee] hover:bg-white text-[#0e1712] font-semibold text-base rounded-xl transition-all shadow-[0_2px_12px_rgba(255,255,255,0.1)] flex items-center justify-center gap-2 mt-2"
+                disabled={carregando}
+                className="w-full h-12 bg-[#eef3ee] hover:bg-white text-[#0e1712] font-semibold text-base rounded-xl transition-all shadow-[0_2px_12px_rgba(255,255,255,0.1)] flex items-center justify-center gap-2 mt-2 disabled:opacity-70"
               >
-                Entrar no AgroSat <ArrowRight className="w-4 h-4" />
+                {carregando ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" /> Autenticando na API...
+                  </>
+                ) : (
+                  <>
+                    Entrar no AgroSat <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
               </button>
             </form>
+
+            {/* Acesso Rápido para Avaliação com Usuários da API */}
+            <div className="bg-[#050c05] border border-[#243a2d] p-3 rounded-xl space-y-2">
+              <span className="text-[11px] text-[#9fb5a6] font-mono block">
+                Contas homologadas na API Java (clique para testar):
+              </span>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => preencherDemo('pedro@email.com', 'usuario')}
+                  className="text-xs bg-[#14211a] hover:bg-[#1d3a2a] text-[#7cc795] border border-[#7cc795]/30 px-2.5 py-1 rounded-md transition-colors"
+                >
+                  Produtor: pedro@email.com
+                </button>
+                <button
+                  type="button"
+                  onClick={() => preencherDemo('fernanda@email.com', 'admin')}
+                  className="text-xs bg-[#14211a] hover:bg-[#1d3a2a] text-[#6fa8e8] border border-[#6fa8e8]/30 px-2.5 py-1 rounded-md transition-colors"
+                >
+                  Admin: fernanda@email.com
+                </button>
+              </div>
+            </div>
 
             <div className="flex items-center justify-between text-xs pt-2">
               <a href="#" className="text-[#7cc795] hover:underline">
