@@ -3,7 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import SeletorFazenda from '../components/SeletorFazenda';
 import CartaoSolo from '../components/CartaoSolo';
 import { PontoMapa } from '../types/localizacao';
-import { ArrowRight, Satellite } from 'lucide-react';
+import { ArrowRight, Satellite, Loader2 } from 'lucide-react';
+import { UsuarioService } from '../services/api';
 
 export const Cadastro: React.FC = () => {
   const navigate = useNavigate();
@@ -22,8 +23,9 @@ export const Cadastro: React.FC = () => {
   });
 
   const [erro, setErro] = useState<string | null>(null);
+  const [salvando, setSalvando] = useState(false);
 
-  const handleContinuar = (e: React.FormEvent) => {
+  const handleContinuar = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!nome.trim() || !email.trim() || !senha.trim() || !nomeFazenda.trim()) {
       setErro('Por favor, preencha todos os campos obrigatórios.');
@@ -36,20 +38,41 @@ export const Cadastro: React.FC = () => {
       return;
     }
 
-    // Salva temporariamente para o próximo passo
-    localStorage.setItem(
-      'agrosat_novo_produtor',
-      JSON.stringify({
-        nome,
-        email,
-        nomeFazenda,
-        plantio,
-        latitude: ponto?.latitude ?? -23.53492,
-        longitude: ponto?.longitude ?? -46.6212,
-      })
-    );
+    try {
+      setSalvando(true);
+      setErro(null);
 
-    navigate('/planos');
+      // 1. Envia os dados para a API REST Java (ou fallback local transparente)
+      const usuarioCriado = await UsuarioService.cadastrar({
+        nome: nome.trim(),
+        email: email.trim(),
+        senha: senha.trim(),
+        tipo: 'PRODUTOR'
+      });
+
+      // 2. Define o usuário criado como o usuário ativo da sessão
+      UsuarioService.setUsuarioAtivo(usuarioCriado);
+
+      // 3. Salva a fazenda vinculada para os próximos passos
+      localStorage.setItem(
+        'agrosat_novo_produtor',
+        JSON.stringify({
+          id: usuarioCriado.id,
+          nome: usuarioCriado.nome,
+          email: usuarioCriado.email,
+          nomeFazenda: nomeFazenda.trim(),
+          plantio,
+          latitude: ponto?.latitude ?? -23.53492,
+          longitude: ponto?.longitude ?? -46.6212,
+        })
+      );
+
+      navigate('/planos');
+    } catch {
+      setErro('Erro ao registrar produtor. Tente novamente.');
+    } finally {
+      setSalvando(false);
+    }
   };
 
   return (
@@ -168,9 +191,18 @@ export const Cadastro: React.FC = () => {
               <div className="pt-2">
                 <button
                   type="submit"
-                  className="w-full h-12 bg-[#eef3ee] hover:bg-white text-[#0e1712] font-semibold text-base rounded-xl transition-all shadow-[0_2px_12px_rgba(255,255,255,0.1)] flex items-center justify-center gap-2"
+                  disabled={salvando}
+                  className="w-full h-12 bg-[#eef3ee] hover:bg-white text-[#0e1712] font-semibold text-base rounded-xl transition-all shadow-[0_2px_12px_rgba(255,255,255,0.1)] flex items-center justify-center gap-2 disabled:opacity-70"
                 >
-                  Continuar para os planos <ArrowRight className="w-4 h-4" />
+                  {salvando ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" /> Registrando na API...
+                    </>
+                  ) : (
+                    <>
+                      Continuar para os planos <ArrowRight className="w-4 h-4" />
+                    </>
+                  )}
                 </button>
               </div>
 
