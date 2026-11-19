@@ -1,7 +1,7 @@
 import type { PontoMapa } from "../types/localizacao";
 import type { SoloInfo } from "../types/solo";
 
-const RAW_URL = import.meta.env.VITE_API_URL ?? "https://agrosat-api.onrender.com";
+const RAW_URL = import.meta.env.VITE_API_URL ?? "https://agrosat-api-eay6.onrender.com";
 const BASE_URL = RAW_URL.replace(/\/$/, "");
 const API = BASE_URL.endsWith("/api") ? BASE_URL : `${BASE_URL}/api`;
 

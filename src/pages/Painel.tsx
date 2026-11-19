@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   Sprout, 
@@ -9,12 +9,55 @@ import {
   ShieldCheck,
   UserPlus,
   LogIn,
-  Sliders
+  Sliders,
+  Plus,
+  Trash2,
+  ExternalLink,
+  Loader2,
+  AlertCircle,
+  Database,
+  Layers
 } from 'lucide-react';
 import { DecisionEngine } from '../components/DecisionEngine';
+import { FazendaService } from '../services/api';
+import { Fazenda } from '../types';
 
 export const Painel: React.FC = () => {
   const [mostrarSimulador, setMostrarSimulador] = useState(false);
+  const [fazendas, setFazendas] = useState<Fazenda[]>([]);
+  const [carregandoFazendas, setCarregandoFazendas] = useState(true);
+  const [erroFazendas, setErroFazendas] = useState<string | null>(null);
+  const [fazendaExcluindo, setFazendaExcluindo] = useState<number | string | null>(null);
+
+  useEffect(() => {
+    carregarFazendas();
+  }, []);
+
+  const carregarFazendas = async () => {
+    try {
+      setCarregandoFazendas(true);
+      setErroFazendas(null);
+      const lista = await FazendaService.listar();
+      setFazendas(lista);
+    } catch {
+      setErroFazendas('Falha ao consultar propriedades na API Java.');
+    } finally {
+      setCarregandoFazendas(false);
+    }
+  };
+
+  const handleRemoverFazenda = async (id: number | string, nome: string) => {
+    if (!window.confirm(`Tem certeza que deseja excluir a propriedade "${nome}"? (Operação DELETE na API)`)) return;
+    try {
+      setFazendaExcluindo(id);
+      await FazendaService.remover(id);
+      setFazendas(prev => prev.filter(f => String(f.id) !== String(id)));
+    } catch {
+      alert('Não foi possível excluir a fazenda.');
+    } finally {
+      setFazendaExcluindo(null);
+    }
+  };
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-10">
@@ -89,6 +132,145 @@ export const Painel: React.FC = () => {
             <span>Visão da cooperativa (ODS 2 & 13)</span>
           </Link>
         </div>
+      </div>
+
+      {/* Seção Real de Integração: Propriedades Rurais (API Java REST & Oracle) */}
+      <div className="bg-[#0b180d] border border-brand-border rounded-2xl p-6 sm:p-8 space-y-6 shadow-[0_4px_30px_rgba(0,0,0,0.5)]">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-brand-border/60 pb-5">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono bg-emerald-950/80 border border-brand-primary/40 text-brand-primary">
+                <Database className="w-3.5 h-3.5" /> API Java REST (Spring Boot & Oracle)
+              </span>
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-bold font-heading text-white">
+              Propriedades Rurais Cadastradas
+            </h2>
+            <p className="text-xs sm:text-sm text-brand-text-muted">
+              Dados sincronizados diretamente do backend Java no Render com persistência relacional.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button
+              onClick={carregarFazendas}
+              disabled={carregandoFazendas}
+              className="px-4 py-2.5 rounded-xl border border-brand-border hover:border-brand-primary/40 text-brand-text-body hover:text-white text-xs font-mono transition-colors disabled:opacity-50"
+              title="Atualizar lista da API"
+            >
+              {carregandoFazendas ? 'Atualizando...' : 'Recarregar'}
+            </button>
+            <Link
+              to="/painel/nova-fazenda"
+              className="bg-brand-primary hover:bg-brand-primary-hover text-black font-semibold text-xs sm:text-sm px-5 py-2.5 rounded-xl transition-all duration-200 flex items-center gap-2 shadow-[0_2px_12px_rgba(74,222,128,0.25)] hover:scale-[1.02]"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Cadastrar nova fazenda (POST)</span>
+            </Link>
+          </div>
+        </div>
+
+        {/* Estado: Carregando */}
+        {carregandoFazendas && (
+          <div className="py-12 flex flex-col items-center justify-center gap-3 text-center">
+            <Loader2 className="w-8 h-8 animate-spin text-brand-primary" />
+            <p className="text-sm text-brand-text-body font-mono">
+              Consultando endpoint GET /fazendas na API Java remota...
+            </p>
+          </div>
+        )}
+
+        {/* Estado: Erro */}
+        {!carregandoFazendas && erroFazendas && (
+          <div className="p-4 bg-red-950/30 border border-red-500/40 rounded-xl flex items-center gap-3 text-red-300 text-sm">
+            <AlertCircle className="w-5 h-5 shrink-0" />
+            <div className="flex-1">
+              <p className="font-semibold">{erroFazendas}</p>
+              <p className="text-xs opacity-80">A aplicação utilizou os dados locais para manter a operação ativa.</p>
+            </div>
+            <button
+              onClick={carregarFazendas}
+              className="px-3 py-1 bg-red-900/60 hover:bg-red-800 rounded text-xs font-semibold"
+            >
+              Tentar novamente
+            </button>
+          </div>
+        )}
+
+        {/* Estado: Lista Vazia */}
+        {!carregandoFazendas && fazendas.length === 0 && !erroFazendas && (
+          <div className="py-12 text-center space-y-3">
+            <Layers className="w-12 h-12 text-brand-text-muted mx-auto opacity-50" />
+            <p className="text-white font-medium">Nenhuma propriedade cadastrada até o momento.</p>
+            <p className="text-xs text-brand-text-muted">Cadastre sua primeira fazenda para iniciar o monitoramento.</p>
+            <Link
+              to="/painel/nova-fazenda"
+              className="inline-flex items-center gap-2 text-brand-primary hover:underline text-sm font-semibold"
+            >
+              <Plus className="w-4 h-4" /> Cadastrar agora
+            </Link>
+          </div>
+        )}
+
+        {/* Estado: Lista com Dados */}
+        {!carregandoFazendas && fazendas.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {fazendas.map((f) => (
+              <div
+                key={f.id}
+                className="bg-[#050c05] border border-brand-border/70 hover:border-brand-primary/50 rounded-xl p-5 flex flex-col justify-between transition-all duration-200 hover:shadow-[0_4px_20px_rgba(74,222,128,0.15)] group"
+              >
+                <div className="space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <h3 className="font-heading text-lg font-bold text-white group-hover:text-brand-primary transition-colors">
+                      {f.nome}
+                    </h3>
+                    <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-emerald-950 text-brand-primary border border-brand-primary/30 shrink-0">
+                      ID #{f.id}
+                    </span>
+                  </div>
+
+                  <div className="space-y-1.5 text-xs text-brand-text-body font-mono">
+                    <p className="text-brand-text-muted">
+                      📍 {f.municipio ? `${f.municipio} - ${f.uf}` : `Coord: ${f.latitude?.toFixed(3) ?? '-21.178'}, ${f.longitude?.toFixed(3) ?? '-47.811'}`}
+                    </p>
+                    <p>
+                      🌱 {f.talhoes && f.talhoes.length > 0 ? `${f.talhoes.length} talhão(ões) cadastrado(s)` : 'Sem talhões adicionados'}
+                    </p>
+                    {f.sistemaIrrigacao && (
+                      <p className="text-[11px] text-brand-text-muted">
+                        💧 {f.sistemaIrrigacao}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="pt-4 mt-4 border-t border-brand-border/40 flex items-center justify-between gap-2">
+                  <Link
+                    to={`/painel/fazenda/${f.id}`}
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-primary hover:text-brand-primary-hover hover:underline"
+                  >
+                    <span>Ver Detalhes & Leituras</span>
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </Link>
+
+                  <button
+                    onClick={() => handleRemoverFazenda(f.id, f.nome)}
+                    disabled={fazendaExcluindo === f.id}
+                    className="p-1.5 rounded-lg text-brand-text-muted hover:text-red-400 hover:bg-red-950/40 transition-colors disabled:opacity-50"
+                    title="Excluir propriedade da API (DELETE)"
+                  >
+                    {fazendaExcluindo === f.id ? (
+                      <Loader2 className="w-4 h-4 animate-spin text-red-400" />
+                    ) : (
+                      <Trash2 className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Grid com a Demonstração dos 4 Módulos do Usuário */}

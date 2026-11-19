@@ -10,8 +10,8 @@
 ## 📌 Links do Projeto
 
 * 🌐 **Aplicação no ar (Vercel):** `https://agrosat-fiap.vercel.app` *(substituir pela URL após deploy)*
-* 🔗 **Repositório no GitHub:** [https://github.com/PatrickAriel0/AgroSat](https://github.com/PatrickAriel0/AgroSat)
-* ⚙️ **API RESTful Java (Render):** `https://agrosat-api.onrender.com`
+* 🔗 **Repositório no GitHub:** [https://github.com/PatrickAriel0/AgroSat_2_0](https://github.com/PatrickAriel0/AgroSat_2_0)
+* ⚙️ **API RESTful Java (Render):** `https://agrosat-api-eay6.onrender.com`
 * 🎥 **Vídeo Demonstrativo (YouTube):** `https://youtu.be/SEU_VIDEO_AQUI` *(máximo 3 minutos)*
 
 ---
@@ -137,8 +137,8 @@ AgroSat/
 ### Passo a passo
 1. Clone o repositório:
    ```bash
-   git clone https://github.com/PatrickAriel0/AgroSat.git
-   cd AgroSat
+   git clone https://github.com/PatrickAriel0/AgroSat_2_0.git
+   cd AgroSat_2_0
    ```
 
 2. Instale as dependências:

@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { FazendaService } from '../services/api';
 import { WeatherService } from '../services/weatherService';
 import { Fazenda, PrevisaoClimatica, Talhao, DecisaoIrrigacao } from '../types';
-import { ArrowLeft, Loader2, AlertTriangle, CheckCircle2, ShieldCheck, Plus } from 'lucide-react';
+import { ArrowLeft, Loader2, AlertTriangle, CheckCircle2, ShieldCheck, Plus, Trash2 } from 'lucide-react';
 
 export const FazendaDetalhe: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [fazenda, setFazenda] = useState<Fazenda | null>(null);
   const [loading, setLoading] = useState(true);
   const [previsao, setPrevisao] = useState<PrevisaoClimatica | null>(null);
+  const [excluindo, setExcluindo] = useState(false);
 
   // Talhão selecionado
   const [talhaoAtivo, setTalhaoAtivo] = useState<Talhao | null>(null);
@@ -45,6 +47,20 @@ export const FazendaDetalhe: React.FC = () => {
     }
     carregarDados();
   }, [id]);
+
+  const handleExcluirFazenda = async () => {
+    if (!fazenda) return;
+    if (!window.confirm(`Tem certeza que deseja excluir a propriedade "${fazenda.nome}"? Esta ação executará uma requisição DELETE na API.`)) return;
+    try {
+      setExcluindo(true);
+      await FazendaService.remover(fazenda.id);
+      navigate('/painel');
+    } catch {
+      alert('Erro ao excluir propriedade.');
+    } finally {
+      setExcluindo(false);
+    }
+  };
 
   const handleRegistrarLeitura = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -120,13 +136,24 @@ export const FazendaDetalhe: React.FC = () => {
       </Link>
 
       {/* Farm Header */}
-      <div className="mb-10">
-        <h1 className="text-4xl sm:text-5xl font-bold font-heading text-white mb-1.5 tracking-wide">
-          {fazenda.nome}
-        </h1>
-        <p className="text-lg text-brand-text-muted">
-          {fazenda.municipio} - {fazenda.uf}
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-10 pb-6 border-b border-brand-border/40">
+        <div>
+          <h1 className="text-4xl sm:text-5xl font-bold font-heading text-white mb-1.5 tracking-wide">
+            {fazenda.nome}
+          </h1>
+          <p className="text-lg text-brand-text-muted">
+            {fazenda.municipio ? `${fazenda.municipio} - ${fazenda.uf}` : `Coordenadas: ${fazenda.latitude ?? -21.178}, ${fazenda.longitude ?? -47.811}`}
+          </p>
+        </div>
+        <button
+          onClick={handleExcluirFazenda}
+          disabled={excluindo}
+          className="self-start sm:self-auto inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-red-500/40 bg-red-950/30 hover:bg-red-900/50 text-red-300 text-sm font-medium transition-colors disabled:opacity-50"
+          title="Excluir propriedade da base de dados (DELETE)"
+        >
+          {excluindo ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+          <span>Excluir Propriedade</span>
+        </button>
       </div>
 
       {/* Top Grid: Previsão de Chuva + Orientação */}

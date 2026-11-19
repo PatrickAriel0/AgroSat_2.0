@@ -11,7 +11,7 @@ INTEGRANTES DO GRUPO:
 5. Pedro Henrique - RM 573547
 
 LINKS:
-- Repositório GitHub: https://github.com/PatrickAriel0/AgroSat
+- Repositório GitHub: https://github.com/PatrickAriel0/AgroSat_2_0
 - Aplicação no ar (Vercel): https://agrosat-fiap.vercel.app
-- API Java (Render): https://agrosat-api.onrender.com
+- API Java (Render): https://agrosat-api-eay6.onrender.com
 - Vídeo Demonstrativo (YouTube): https://youtu.be/SEU_VIDEO_AQUI

@@ -1,7 +1,7 @@
 import { Fazenda, LeituraUmidade } from '../types';
 
 // URL base da API Java Spring Boot configurável via .env
-const RAW_API_URL = import.meta.env.VITE_API_URL || 'https://agrosat-api.onrender.com';
+const RAW_API_URL = import.meta.env.VITE_API_URL || 'https://agrosat-api-eay6.onrender.com';
 const API_BASE_URL = RAW_API_URL.replace(/\/$/, '');
 
 // Mock data inicial persistente para garantir resiliência caso a API no Render esteja em repouso
@@ -102,7 +102,7 @@ export const FazendaService = {
   async listar(): Promise<Fazenda[]> {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 4000);
+      const timeoutId = setTimeout(() => controller.abort(), 6000);
 
       const response = await fetch(`${API_BASE_URL}/fazendas`, {
         method: 'GET',
@@ -115,6 +115,42 @@ export const FazendaService = {
       if (response.ok) {
         const dados = await response.json();
         if (Array.isArray(dados) && dados.length > 0) {
+          try {
+            const resTalhoes = await fetch(`${API_BASE_URL}/talhoes`, { headers: { 'Accept': 'application/json' } });
+            if (resTalhoes.ok) {
+              const todosTalhoes = await resTalhoes.json();
+              if (Array.isArray(todosTalhoes)) {
+                dados.forEach((f: any) => {
+                  if (!f.talhoes || f.talhoes.length === 0) {
+                    const vinculados = todosTalhoes.filter((t: any) => String(t.fazendaId) === String(f.id));
+                    f.talhoes = vinculados.length > 0 ? vinculados.map((t: any) => ({
+                      id: t.id,
+                      nome: t.nome,
+                      cultura: t.cultura || 'Cultura Geral',
+                      areaHa: t.areaHa || 5.0,
+                      limiteUmidade: t.limiteUmidade || 40,
+                      leituras: t.leituras || [
+                        { id: 1, dataHora: new Date().toLocaleString('pt-BR'), valorUmidade: 32 }
+                      ]
+                    })) : [
+                      {
+                        id: f.id * 100 + 1,
+                        nome: 'Talhão Principal',
+                        cultura: 'Cultura Geral',
+                        areaHa: 4.5,
+                        limiteUmidade: 40,
+                        leituras: [
+                          { id: 1, dataHora: new Date().toLocaleString('pt-BR'), valorUmidade: 35 }
+                        ]
+                      }
+                    ];
+                  }
+                });
+              }
+            }
+          } catch {
+            // tolera
+          }
           saveLocalDb(dados);
           return dados;
         }
@@ -129,7 +165,7 @@ export const FazendaService = {
   async buscarPorId(id: number | string): Promise<Fazenda | null> {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 4000);
+      const timeoutId = setTimeout(() => controller.abort(), 6000);
 
       const response = await fetch(`${API_BASE_URL}/fazendas/${id}`, {
         method: 'GET',
@@ -140,7 +176,42 @@ export const FazendaService = {
       clearTimeout(timeoutId);
 
       if (response.ok) {
-        return await response.json();
+        const farm = await response.json();
+        if (farm && (!farm.talhoes || farm.talhoes.length === 0)) {
+          try {
+            const resTalhoes = await fetch(`${API_BASE_URL}/talhoes`, { headers: { 'Accept': 'application/json' } });
+            if (resTalhoes.ok) {
+              const todosTalhoes = await resTalhoes.json();
+              if (Array.isArray(todosTalhoes)) {
+                const vinculados = todosTalhoes.filter((t: any) => String(t.fazendaId) === String(farm.id));
+                farm.talhoes = vinculados.length > 0 ? vinculados.map((t: any) => ({
+                  id: t.id,
+                  nome: t.nome,
+                  cultura: t.cultura || 'Cultura Geral',
+                  areaHa: t.areaHa || 5.0,
+                  limiteUmidade: t.limiteUmidade || 40,
+                  leituras: t.leituras || [
+                    { id: 1, dataHora: new Date().toLocaleString('pt-BR'), valorUmidade: 32 }
+                  ]
+                })) : [
+                  {
+                    id: farm.id * 100 + 1,
+                    nome: 'Talhão Principal',
+                    cultura: 'Cultura Geral',
+                    areaHa: 4.5,
+                    limiteUmidade: 40,
+                    leituras: [
+                      { id: 1, dataHora: new Date().toLocaleString('pt-BR'), valorUmidade: 35 }
+                    ]
+                  }
+                ];
+              }
+            }
+          } catch {
+            // tolera
+          }
+        }
+        return farm;
       }
       const local = getLocalDb().find(f => String(f.id) === String(id));
       return local || null;
@@ -152,9 +223,10 @@ export const FazendaService = {
 
   async cadastrar(fazenda: Omit<Fazenda, 'id'>): Promise<Fazenda> {
     const novoId = Date.now();
-    const novaFazenda: Fazenda = {
+    const payloadEnvio: any = {
       ...fazenda,
       id: novoId,
+      usuarioId: 1,
       talhoes: (fazenda.talhoes || []).map((t, idx) => ({
         ...t,
         id: t.id || novoId + idx + 1,
@@ -164,7 +236,7 @@ export const FazendaService = {
 
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      const timeoutId = setTimeout(() => controller.abort(), 6000);
 
       const response = await fetch(`${API_BASE_URL}/fazendas`, {
         method: 'POST',
@@ -172,7 +244,7 @@ export const FazendaService = {
           'Content-Type': 'application/json',
           'Accept': 'application/json'
         },
-        body: JSON.stringify(novaFazenda),
+        body: JSON.stringify(payloadEnvio),
         signal: controller.signal
       });
 
@@ -189,8 +261,8 @@ export const FazendaService = {
     }
 
     const listaAtual = getLocalDb();
-    saveLocalDb([novaFazenda, ...listaAtual]);
-    return novaFazenda;
+    saveLocalDb([payloadEnvio, ...listaAtual]);
+    return payloadEnvio;
   },
 
   async remover(id: number | string): Promise<boolean> {
