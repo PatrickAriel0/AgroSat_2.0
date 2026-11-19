@@ -19,20 +19,19 @@ const STORAGE_KEY_SELECIONADA = 'agrosat_fazenda_selecionada';
 export const RecomendacaoHoje: React.FC = () => {
   const [atualizando, setAtualizando] = useState(false);
   const [mensagemEnviada, setMensagemEnviada] = useState(false);
+  const [carregado, setCarregado] = useState(false);
 
   // Plantações do produtor
   const [plantacoes, setPlantacoes] = useState<PlantacaoItem[]>([]);
-  const [plantacaoSelecionada, setPlantacaoSelecionada] = useState<string>('Fazenda Feliz');
-  const [culturaAtual, setCulturaAtual] = useState<string>('Soja');
-  const [pontoAtivo, setPontoAtivo] = useState<{ latitude: number; longitude: number } | null>({
-    latitude: -23.5349,
-    longitude: -46.6212,
-  });
+  const [plantacaoSelecionada, setPlantacaoSelecionada] = useState<string>('');
+  const [culturaAtual, setCulturaAtual] = useState<string>('');
+  const [pontoAtivo, setPontoAtivo] = useState<{ latitude: number; longitude: number } | null>(null);
 
   // Estados dos parâmetros agronômicos (FAO-56)
-  const [aguaSolo, setAguaSolo] = useState(29.3); // %
-  const [chuvaPrevista, setChuvaPrevista] = useState(14.5); // mm
-  const [evaporacao, setEvaporacao] = useState(12.6); // mm
+  const [aguaSolo, setAguaSolo] = useState(0); // %
+  const [chuvaPrevista, setChuvaPrevista] = useState(0); // mm
+  const [evaporacao, setEvaporacao] = useState(0); // mm
+  const [probChuva, setProbChuva] = useState('');
 
   const saldoLiquido = (chuvaPrevista - evaporacao).toFixed(1);
   const saldoPositivo = parseFloat(saldoLiquido) >= 0;
@@ -58,24 +57,18 @@ export const RecomendacaoHoje: React.FC = () => {
         }
       }
 
-      if (listaCarregada.length === 0) {
-        listaCarregada = [
-          { id: '1', nome: 'Fazenda Feliz', cultura: 'Soja', latitude: -23.5349, longitude: -46.6212 },
-          { id: '2', nome: 'Fazenda Triste', cultura: 'Milho', latitude: -22.9068, longitude: -47.0616 },
-          { id: '3', nome: 'Token Fortnite', cultura: 'Café', latitude: -21.1775, longitude: -47.8103 },
-        ];
-      }
-
       setPlantacoes(listaCarregada);
 
-      const ultimaEscolhida = localStorage.getItem(STORAGE_KEY_SELECIONADA);
-      const fazendaAlvo = listaCarregada.find((f) => f.nome === ultimaEscolhida) || listaCarregada[0];
-
-      if (fazendaAlvo) {
-        aplicarFazenda(fazendaAlvo);
+      if (listaCarregada.length > 0) {
+        const ultimaEscolhida = localStorage.getItem(STORAGE_KEY_SELECIONADA);
+        const fazendaAlvo = listaCarregada.find((f) => f.nome === ultimaEscolhida) || listaCarregada[0];
+        if (fazendaAlvo) {
+          aplicarFazenda(fazendaAlvo);
+        }
       }
+      setCarregado(true);
     } catch {
-      // ignore
+      setCarregado(true);
     }
   }, []);
 
@@ -85,13 +78,14 @@ export const RecomendacaoHoje: React.FC = () => {
     setPontoAtivo({ latitude: fazenda.latitude, longitude: fazenda.longitude });
 
     const rec = calcularRecomendacao(fazenda);
-    const umidadeNum = parseFloat(rec.umidade) || 29.3;
-    const chuvaNum = parseFloat(rec.chuva3d) || 14.5;
+    const umidadeNum = parseFloat(rec.umidade) || 0;
+    const chuvaNum = parseFloat(rec.chuva3d) || 0;
     const evapCalculada = Number((10 + (Math.abs(fazenda.latitude * 3) % 5)).toFixed(1));
 
     setAguaSolo(umidadeNum);
     setChuvaPrevista(chuvaNum);
     setEvaporacao(evapCalculada);
+    setProbChuva(rec.probChuva || '85%');
   };
 
   const handleTrocarFazenda = (nomeEscolhido: string) => {
@@ -143,7 +137,7 @@ export const RecomendacaoHoje: React.FC = () => {
         </div>
         <div className="flex items-center gap-3">
           <span className="hidden sm:inline-block text-[#9fb5a6] text-sm">
-            Propriedade: <strong className="text-white">{plantacaoSelecionada}</strong> · <span className="text-[#7cc795] font-semibold">Online</span>
+            Propriedade: <strong className="text-white">{plantacaoSelecionada || 'Nenhuma'}</strong> · <span className="text-[#7cc795] font-semibold">Online</span>
           </span>
           <Link
             to="/painel-usuario"
@@ -172,46 +166,66 @@ export const RecomendacaoHoje: React.FC = () => {
           </div>
         )}
 
-        {/* Barra de Seleção Contextual de Fazenda */}
-        <div className="bg-[#14211a] border border-[#243a2d] rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[#1d3a2a] text-[#7cc795] flex items-center justify-center shrink-0">
-              <Sprout className="w-5 h-5" />
+        {plantacoes.length === 0 && carregado ? (
+          <div className="bg-[#14211a] border border-[#243a2d] rounded-2xl p-8 text-center space-y-4">
+            <div className="w-12 h-12 rounded-full bg-[#1d3a2a] text-[#7cc795] flex items-center justify-center mx-auto">
+              <Sprout className="w-6 h-6" />
             </div>
-            <div>
-              <span className="text-xs text-[#9fb5a6] block">Fazenda Selecionada</span>
-              <div className="flex items-center gap-2">
-                <b className="text-white text-base font-heading">{plantacaoSelecionada}</b>
-                <span className="text-xs bg-[#1d3a2a] text-[#7cc795] px-2 py-0.5 rounded font-mono">
-                  {culturaAtual}
-                </span>
-                {pontoAtivo && (
-                  <span className="text-[11px] text-[#9fb5a6] hidden md:inline">
-                    ({pontoAtivo.latitude.toFixed(4)}, {pontoAtivo.longitude.toFixed(4)})
-                  </span>
-                )}
+            <h2 className="text-xl font-heading font-bold text-white">Nenhuma plantação cadastrada</h2>
+            <p className="text-sm text-[#9fb5a6] max-w-md mx-auto">
+              Cadastre sua propriedade no Painel do Usuário para visualizar o balanço hídrico FAO-56 e as recomendações agronômicas em tempo real.
+            </p>
+            <Link
+              to="/painel-usuario"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#eef3ee] text-[#0e1712] font-semibold text-sm hover:bg-white transition-all"
+            >
+              Ir para o Painel do Usuário
+            </Link>
+          </div>
+        ) : (
+          <>
+            {/* Barra de Seleção Contextual de Fazenda */}
+            <div className="bg-[#14211a] border border-[#243a2d] rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-[#1d3a2a] text-[#7cc795] flex items-center justify-center shrink-0">
+                  <Sprout className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="text-xs text-[#9fb5a6] block">Fazenda Selecionada</span>
+                  <div className="flex items-center gap-2">
+                    <b className="text-white text-base font-heading">{plantacaoSelecionada}</b>
+                    {culturaAtual && (
+                      <span className="text-xs bg-[#1d3a2a] text-[#7cc795] px-2 py-0.5 rounded font-mono">
+                        {culturaAtual}
+                      </span>
+                    )}
+                    {pontoAtivo && (
+                      <span className="text-[11px] text-[#9fb5a6] hidden md:inline">
+                        ({pontoAtivo.latitude.toFixed(4)}, {pontoAtivo.longitude.toFixed(4)})
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2.5">
+                <label htmlFor="select-fazenda-rec" className="text-xs text-[#9fb5a6] whitespace-nowrap">
+                  Trocar propriedade:
+                </label>
+                <select
+                  id="select-fazenda-rec"
+                  value={plantacaoSelecionada}
+                  onChange={(e) => handleTrocarFazenda(e.target.value)}
+                  className="h-10 bg-[#0e1712] border border-[#2f4838] rounded-xl text-white text-xs px-3 focus:outline-none focus:border-[#7cc795]"
+                >
+                  {plantacoes.map((p) => (
+                    <option key={p.id} value={p.nome}>
+                      {p.nome} ({p.cultura})
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
-          </div>
-
-          <div className="flex items-center gap-2.5">
-            <label htmlFor="select-fazenda-rec" className="text-xs text-[#9fb5a6] whitespace-nowrap">
-              Trocar propriedade:
-            </label>
-            <select
-              id="select-fazenda-rec"
-              value={plantacaoSelecionada}
-              onChange={(e) => handleTrocarFazenda(e.target.value)}
-              className="h-10 bg-[#0e1712] border border-[#2f4838] rounded-xl text-white text-xs px-3 focus:outline-none focus:border-[#7cc795]"
-            >
-              {plantacoes.map((p) => (
-                <option key={p.id} value={p.nome}>
-                  {p.nome} ({p.cultura})
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
 
         {/* Grid de 2 Colunas: Card Principal (Recomendação & FAO-56) e Card Lateral */}
         <div className="grid grid-cols-1 lg:grid-cols-[1.6fr_1fr] gap-6 lg:gap-8 items-start">
@@ -342,7 +356,7 @@ export const RecomendacaoHoje: React.FC = () => {
               <div className="space-y-3 pt-2 text-sm border-t border-[#243a2d]">
                 <div className="flex justify-between items-center py-1">
                   <span className="text-[#9fb5a6]">Probabilidade de chuva</span>
-                  <b className="text-white font-mono">97%</b>
+                  <b className="text-white font-mono">{probChuva || '85%'}</b>
                 </div>
                 <div className="flex justify-between items-center py-1">
                   <span className="text-[#9fb5a6]">Fonte da previsão</span>
@@ -431,13 +445,17 @@ export const RecomendacaoHoje: React.FC = () => {
         </div>
 
         {/* Card Pedológico e Granulométrico ISRIC SoilGrids 2.0 & SiBCS */}
-        <div className="pt-2">
-          <CartaoSolo
-            ponto={pontoAtivo}
-            nomeFazenda={plantacaoSelecionada}
-            titulo={`Análise de Solo & Granulometria (ISRIC SoilGrids 2.0)`}
-          />
-        </div>
+        {pontoAtivo && (
+          <div className="pt-2">
+            <CartaoSolo
+              ponto={pontoAtivo}
+              nomeFazenda={plantacaoSelecionada}
+              titulo={`Análise de Solo & Granulometria (ISRIC SoilGrids 2.0)`}
+            />
+          </div>
+        )}
+          </>
+        )}
       </div>
     </div>
   );
