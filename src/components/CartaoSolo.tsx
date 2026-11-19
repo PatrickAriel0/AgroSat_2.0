@@ -14,11 +14,15 @@ type Estado =
 interface Props {
   /** Ponto marcado no mapa (ou null se ainda não marcou). */
   ponto: PontoMapa | null;
+  /** Título personalizado (opcional). */
+  titulo?: string;
+  /** Nome da fazenda ativa para exibição contextual (opcional). */
+  nomeFazenda?: string;
 }
 
 const ATRASO_MS = 600;
 
-export default function CartaoSolo({ ponto }: Props) {
+export default function CartaoSolo({ ponto, titulo, nomeFazenda }: Props) {
   const [tentativa, setTentativa] = useState(0);
   const [resposta, setResposta] = useState<{ chave: string; estado: Estado } | null>(null);
 
@@ -70,12 +74,19 @@ export default function CartaoSolo({ ponto }: Props) {
       aria-labelledby="titulo-solo"
       className="w-full min-w-0 rounded-2xl border border-agro-border bg-agro-card p-4 sm:p-6"
     >
-      <h2
-        id="titulo-solo"
-        className="font-heading text-2xl font-bold text-agro-white sm:text-3xl"
-      >
-        Qual é o solo da sua fazenda?
-      </h2>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <h2
+          id="titulo-solo"
+          className="font-heading text-2xl font-bold text-agro-white sm:text-3xl"
+        >
+          {titulo ?? (nomeFazenda ? `Qual é o solo de ${nomeFazenda}?` : "Qual é o solo da sua fazenda?")}
+        </h2>
+        {nomeFazenda && (
+          <span className="text-xs bg-[#1d3a2a] text-[#7cc795] border border-[#7cc795]/30 px-3 py-1 rounded-full font-medium w-fit">
+            Propriedade: {nomeFazenda}
+          </span>
+        )}
+      </div>
 
       <div
         role="status"

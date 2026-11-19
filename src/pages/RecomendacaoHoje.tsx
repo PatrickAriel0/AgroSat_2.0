@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   Satellite, 
@@ -6,13 +6,28 @@ import {
   Send, 
   WifiOff, 
   CheckCircle2, 
-  CloudRain,
-  ArrowLeft
+  CloudRain, 
+  ArrowLeft,
+  Sprout
 } from 'lucide-react';
+import CartaoSolo from '../components/CartaoSolo';
+import { calcularRecomendacao, PlantacaoItem } from '../utils/recomendacao';
+
+const STORAGE_KEY_PLANTACOES = 'agrosat_plantacoes_usuario';
+const STORAGE_KEY_SELECIONADA = 'agrosat_fazenda_selecionada';
 
 export const RecomendacaoHoje: React.FC = () => {
   const [atualizando, setAtualizando] = useState(false);
   const [mensagemEnviada, setMensagemEnviada] = useState(false);
+
+  // Plantações do produtor
+  const [plantacoes, setPlantacoes] = useState<PlantacaoItem[]>([]);
+  const [plantacaoSelecionada, setPlantacaoSelecionada] = useState<string>('Fazenda Feliz');
+  const [culturaAtual, setCulturaAtual] = useState<string>('Soja');
+  const [pontoAtivo, setPontoAtivo] = useState<{ latitude: number; longitude: number } | null>({
+    latitude: -23.5349,
+    longitude: -46.6212,
+  });
 
   // Estados dos parâmetros agronômicos (FAO-56)
   const [aguaSolo, setAguaSolo] = useState(29.3); // %
@@ -26,11 +41,76 @@ export const RecomendacaoHoje: React.FC = () => {
   const decisao = aguaSolo > 25 || parseFloat(saldoLiquido) > 0 ? 'NÃO REGAR' : 'REGAR';
   const decisaoCor = decisao === 'NÃO REGAR' ? '#7cc795' : '#6fa8e8';
 
+  // Carrega as fazendas do produtor e a fazenda ativa
+  useEffect(() => {
+    try {
+      let listaCarregada: PlantacaoItem[] = [];
+      const salvas = localStorage.getItem(STORAGE_KEY_PLANTACOES);
+
+      if (salvas) {
+        try {
+          const parsed = JSON.parse(salvas);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            listaCarregada = parsed;
+          }
+        } catch {
+          listaCarregada = [];
+        }
+      }
+
+      if (listaCarregada.length === 0) {
+        listaCarregada = [
+          { id: '1', nome: 'Fazenda Feliz', cultura: 'Soja', latitude: -23.5349, longitude: -46.6212 },
+          { id: '2', nome: 'Fazenda Triste', cultura: 'Milho', latitude: -22.9068, longitude: -47.0616 },
+          { id: '3', nome: 'Token Fortnite', cultura: 'Café', latitude: -21.1775, longitude: -47.8103 },
+        ];
+      }
+
+      setPlantacoes(listaCarregada);
+
+      const ultimaEscolhida = localStorage.getItem(STORAGE_KEY_SELECIONADA);
+      const fazendaAlvo = listaCarregada.find((f) => f.nome === ultimaEscolhida) || listaCarregada[0];
+
+      if (fazendaAlvo) {
+        aplicarFazenda(fazendaAlvo);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const aplicarFazenda = (fazenda: PlantacaoItem) => {
+    setPlantacaoSelecionada(fazenda.nome);
+    setCulturaAtual(fazenda.cultura);
+    setPontoAtivo({ latitude: fazenda.latitude, longitude: fazenda.longitude });
+
+    const rec = calcularRecomendacao(fazenda);
+    const umidadeNum = parseFloat(rec.umidade) || 29.3;
+    const chuvaNum = parseFloat(rec.chuva3d) || 14.5;
+    const evapCalculada = Number((10 + (Math.abs(fazenda.latitude * 3) % 5)).toFixed(1));
+
+    setAguaSolo(umidadeNum);
+    setChuvaPrevista(chuvaNum);
+    setEvaporacao(evapCalculada);
+  };
+
+  const handleTrocarFazenda = (nomeEscolhido: string) => {
+    const alvo = plantacoes.find((p) => p.nome === nomeEscolhido);
+    if (alvo) {
+      aplicarFazenda(alvo);
+      localStorage.setItem(STORAGE_KEY_SELECIONADA, alvo.nome);
+    }
+  };
+
   const handleAtualizar = () => {
     setAtualizando(true);
     setTimeout(() => {
       setAtualizando(false);
-    }, 700);
+      const alvo = plantacoes.find((p) => p.nome === plantacaoSelecionada);
+      if (alvo) {
+        aplicarFazenda(alvo);
+      }
+    }, 600);
   };
 
   const handleEnviarMensagem = () => {
@@ -63,7 +143,7 @@ export const RecomendacaoHoje: React.FC = () => {
         </div>
         <div className="flex items-center gap-3">
           <span className="hidden sm:inline-block text-[#9fb5a6] text-sm">
-            Painel · Fazenda Feliz · <span className="text-[#7cc795] font-semibold">Online</span>
+            Propriedade: <strong className="text-white">{plantacaoSelecionada}</strong> · <span className="text-[#7cc795] font-semibold">Online</span>
           </span>
           <Link
             to="/painel-usuario"
@@ -74,30 +154,72 @@ export const RecomendacaoHoje: React.FC = () => {
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 sm:pt-12">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 sm:pt-10 space-y-6">
         {mensagemEnviada && (
-          <div className="mb-6 bg-[#1d3a2a] border border-[#7cc795] text-[#7cc795] p-4 rounded-xl flex items-center justify-between animate-in fade-in duration-200">
+          <div className="bg-[#1d3a2a] border border-[#7cc795] text-[#7cc795] p-4 rounded-xl flex items-center justify-between animate-in fade-in duration-200">
             <div className="flex items-center gap-2.5">
-              <CheckCircle2 className="w-5 h-5" />
+              <CheckCircle2 className="w-5 h-5 shrink-0" />
               <span className="text-sm font-medium">
-                Alerta enviado via SMS e WhatsApp com sucesso para o produtor responsável!
+                Alerta de irrigação enviado via SMS e WhatsApp com sucesso para o produtor responsável de {plantacaoSelecionada}!
               </span>
             </div>
             <button
               onClick={() => setMensagemEnviada(false)}
-              className="text-xs text-[#9fb5a6] hover:text-white"
+              className="text-xs text-[#9fb5a6] hover:text-white ml-2"
             >
               Fechar
             </button>
           </div>
         )}
 
+        {/* Barra de Seleção Contextual de Fazenda */}
+        <div className="bg-[#14211a] border border-[#243a2d] rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-[#1d3a2a] text-[#7cc795] flex items-center justify-center shrink-0">
+              <Sprout className="w-5 h-5" />
+            </div>
+            <div>
+              <span className="text-xs text-[#9fb5a6] block">Fazenda Selecionada</span>
+              <div className="flex items-center gap-2">
+                <b className="text-white text-base font-heading">{plantacaoSelecionada}</b>
+                <span className="text-xs bg-[#1d3a2a] text-[#7cc795] px-2 py-0.5 rounded font-mono">
+                  {culturaAtual}
+                </span>
+                {pontoAtivo && (
+                  <span className="text-[11px] text-[#9fb5a6] hidden md:inline">
+                    ({pontoAtivo.latitude.toFixed(4)}, {pontoAtivo.longitude.toFixed(4)})
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5">
+            <label htmlFor="select-fazenda-rec" className="text-xs text-[#9fb5a6] whitespace-nowrap">
+              Trocar propriedade:
+            </label>
+            <select
+              id="select-fazenda-rec"
+              value={plantacaoSelecionada}
+              onChange={(e) => handleTrocarFazenda(e.target.value)}
+              className="h-10 bg-[#0e1712] border border-[#2f4838] rounded-xl text-white text-xs px-3 focus:outline-none focus:border-[#7cc795]"
+            >
+              {plantacoes.map((p) => (
+                <option key={p.id} value={p.nome}>
+                  {p.nome} ({p.cultura})
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Grid de 2 Colunas: Card Principal (Recomendação & FAO-56) e Card Lateral */}
         <div className="grid grid-cols-1 lg:grid-cols-[1.6fr_1fr] gap-6 lg:gap-8 items-start">
           {/* Card Principal: Recomendação de hoje & Balanço */}
           <div className="bg-[#14211a] border border-[#243a2d] rounded-2xl p-7 sm:p-9 space-y-6">
             <div>
               <span className="text-xs uppercase tracking-wider text-[#9fb5a6] font-semibold block mb-2">
-                Recomendação de hoje
+                Recomendação de hoje · {plantacaoSelecionada}
               </span>
               <span
                 className="font-heading text-5xl sm:text-7xl font-bold tracking-tight block"
@@ -110,15 +232,14 @@ export const RecomendacaoHoje: React.FC = () => {
             <p className="text-base sm:text-lg text-[#e6efe8] leading-relaxed">
               {decisao === 'NÃO REGAR' ? (
                 <>
-                  Vai chover <strong>{chuvaPrevista} mm</strong> nos próximos 3 dias. O solo já está
-                  bem abastecido ({aguaSolo}% de água disponível), então regar agora desperdiçaria
+                  Previsão de <strong>{chuvaPrevista} mm</strong> de chuva nos próximos 3 dias em {plantacaoSelecionada}. 
+                  O solo de {culturaAtual} está bem abastecido ({aguaSolo}% de água disponível), então regar agora desperdiçaria
                   água e energia de bombeamento.
                 </>
               ) : (
                 <>
-                  O solo atingiu nível abaixo do limite crítico ({aguaSolo}%). Sem chuva prevista
-                  expressiva ({chuvaPrevista} mm), recomenda-se iniciar irrigação para evitar
-                  estresse hídrico.
+                  O solo da lavoura de {culturaAtual} em {plantacaoSelecionada} atingiu nível abaixo do limite crítico ({aguaSolo}%). 
+                  Sem chuva expressiva prevista ({chuvaPrevista} mm), recomenda-se iniciar a irrigação na dose indicada para evitar estresse hídrico.
                 </>
               )}
             </p>
@@ -132,7 +253,7 @@ export const RecomendacaoHoje: React.FC = () => {
                 className="h-12 px-6 rounded-xl bg-[#eef3ee] text-[#0e1712] font-semibold text-sm hover:bg-white transition-all flex items-center gap-2 shadow-[0_2px_10px_rgba(238,243,238,0.2)] disabled:opacity-50"
               >
                 <RefreshCw className={`w-4 h-4 ${atualizando ? 'animate-spin' : ''}`} />
-                <span>{atualizando ? 'Atualizando dados...' : 'Atualizar recomendação'}</span>
+                <span>{atualizando ? 'Atualizando sensores...' : 'Atualizar recomendação'}</span>
               </button>
 
               <button
@@ -307,6 +428,15 @@ export const RecomendacaoHoje: React.FC = () => {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Card Pedológico e Granulométrico ISRIC SoilGrids 2.0 & SiBCS */}
+        <div className="pt-2">
+          <CartaoSolo
+            ponto={pontoAtivo}
+            nomeFazenda={plantacaoSelecionada}
+            titulo={`Análise de Solo & Granulometria (ISRIC SoilGrids 2.0)`}
+          />
         </div>
       </div>
     </div>
