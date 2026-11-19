@@ -17,6 +17,7 @@ import {
   CheckCircle2,
   Trash2
 } from 'lucide-react';
+import { calcularRecomendacao, PlantacaoItem } from '../utils/recomendacao';
 
 setWorkerUrl(urlDoWorker);
 
@@ -101,9 +102,33 @@ export const MapaPlantacoes: React.FC = () => {
   const [culturaNovaPlantacao, setCulturaNovaPlantacao] = useState('Soja');
   const [avisoSucesso, setAvisoSucesso] = useState<string | null>(null);
 
-  // Carrega a fazenda do usuário se cadastrada
+  // Carrega as fazendas do usuário salvas
   useEffect(() => {
     try {
+      const savedUserList = localStorage.getItem('agrosat_plantacoes_usuario');
+      if (savedUserList) {
+        const parsedList: PlantacaoItem[] = JSON.parse(savedUserList);
+        if (Array.isArray(parsedList) && parsedList.length > 0) {
+          const convertidas: FazendaPonto[] = parsedList.map((p) => {
+            const rec = calcularRecomendacao(p);
+            return {
+              id: p.id,
+              nome: p.nome,
+              cultura: p.cultura,
+              situacao: rec.decisao === 'REGAR' ? 'Regar hoje' : rec.decisao === 'ATENÇÃO' ? 'Atenção' : 'Não regar',
+              subtexto: `${rec.umidade} de umidade · Chuva 3d: ${rec.chuva3d}`,
+              cor: rec.cor,
+              lat: p.latitude,
+              lng: p.longitude,
+              isUsuario: true,
+            };
+          });
+          setFazendas(convertidas);
+          setSelecionadaId(convertidas[0].id);
+          return;
+        }
+      }
+
       const saved = localStorage.getItem('agrosat_novo_produtor');
       if (saved) {
         const parsed = JSON.parse(saved);
@@ -113,7 +138,7 @@ export const MapaPlantacoes: React.FC = () => {
             nome: `${parsed.nomeFazenda} (Sua Propriedade)`,
             cultura: parsed.plantio || 'Soja',
             situacao: 'Não regar',
-            subtexto: 'Monitoramento georreferenciado via Open-Meteo',
+            subtexto: 'Monitoramento georreferenciado via satélite',
             cor: '#4ade80',
             lat: parsed.latitude,
             lng: parsed.longitude,
@@ -229,20 +254,46 @@ export const MapaPlantacoes: React.FC = () => {
     e.preventDefault();
     if (!novoPontoMarcado || !nomeNovaPlantacao.trim()) return;
 
+    const rec = calcularRecomendacao({
+      id: Date.now().toString(),
+      nome: nomeNovaPlantacao.trim(),
+      cultura: culturaNovaPlantacao,
+      latitude: novoPontoMarcado.lat,
+      longitude: novoPontoMarcado.lng,
+    });
+
     const nova: FazendaPonto = {
       id: Date.now().toString(),
       nome: nomeNovaPlantacao.trim(),
       cultura: culturaNovaPlantacao,
-      situacao: 'Não regar',
-      subtexto: 'Monitoramento automático via satélite ativado',
-      cor: '#4ade80',
+      situacao: rec.decisao === 'REGAR' ? 'Regar hoje' : rec.decisao === 'ATENÇÃO' ? 'Atenção' : 'Não regar',
+      subtexto: `${rec.umidade} de umidade · Chuva 3d: ${rec.chuva3d}`,
+      cor: rec.cor,
       lat: novoPontoMarcado.lat,
       lng: novoPontoMarcado.lng,
       isUsuario: true,
     };
 
     setFazendas((prev) => [nova, ...prev]);
-    setAvisoSucesso(`Plantação "${nomeNovaPlantacao}" adicionada com sucesso no mapa!`);
+
+    // Sincroniza com as plantações salvas do painel
+    try {
+      const salvas = localStorage.getItem('agrosat_plantacoes_usuario');
+      const listaAtual = salvas ? JSON.parse(salvas) : [];
+      const itemParaPainel: PlantacaoItem = {
+        id: nova.id,
+        nome: nova.nome,
+        cultura: nova.cultura,
+        latitude: nova.lat,
+        longitude: nova.lng,
+      };
+      localStorage.setItem('agrosat_plantacoes_usuario', JSON.stringify([itemParaPainel, ...listaAtual]));
+      localStorage.setItem('agrosat_fazenda_selecionada', nova.nome);
+    } catch {
+      // ignore
+    }
+
+    setAvisoSucesso(`Plantação "${nomeNovaPlantacao}" adicionada com sucesso no mapa e sincronizada com o Painel!`);
     setNomeNovaPlantacao('');
     setNovoPontoMarcado(null);
     setSelecionadaId(nova.id);
@@ -277,6 +328,18 @@ export const MapaPlantacoes: React.FC = () => {
       } catch {
         // ignore
       }
+    }
+
+    // Sincroniza a remoção no localStorage do painel do usuário
+    try {
+      const salvas = localStorage.getItem('agrosat_plantacoes_usuario');
+      if (salvas) {
+        const parsed = JSON.parse(salvas);
+        const filtrada = parsed.filter((p: any) => p.id !== fazenda.id && p.nome !== fazenda.nome);
+        localStorage.setItem('agrosat_plantacoes_usuario', JSON.stringify(filtrada));
+      }
+    } catch {
+      // ignore
     }
 
     setAvisoSucesso(`Plantação "${fazenda.nome}" removida do mapa com sucesso!`);

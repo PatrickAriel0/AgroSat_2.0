@@ -4,19 +4,29 @@ import {
   Satellite, 
   TrendingUp, 
   CheckCircle2, 
-  ArrowRight,
-  LogOut,
-  Map as MapIcon,
-  AlertTriangle,
-  Trash2
+  ArrowRight, 
+  LogOut, 
+  Map as MapIcon, 
+  AlertTriangle, 
+  Trash2,
+  Sprout
 } from 'lucide-react';
+import { 
+  calcularRecomendacao, 
+  PlantacaoItem, 
+  RecomendacaoResultado 
+} from '../utils/recomendacao';
 
-interface PlantacaoItem {
+const STORAGE_KEY_PLANTACOES = 'agrosat_plantacoes_usuario';
+const STORAGE_KEY_SELECIONADA = 'agrosat_fazenda_selecionada';
+
+interface HistoricoItem {
   id: string;
-  nome: string;
-  cultura: string;
-  latitude: number;
-  longitude: number;
+  quando: string;
+  fazenda: string;
+  decisao: string;
+  motivo: string;
+  cor: string;
 }
 
 export const PainelUsuario: React.FC = () => {
@@ -36,16 +46,12 @@ export const PainelUsuario: React.FC = () => {
   const [limiteFazendas, setLimiteFazendas] = useState<number>(1);
 
   // Lista de plantações
-  const [plantacoes, setPlantacoes] = useState<PlantacaoItem[]>([
-    { id: '1', nome: 'Fazenda Feliz', cultura: 'Soja', latitude: -23.5349, longitude: -46.6212 },
-    { id: '2', nome: 'Fazenda Triste', cultura: 'Milho', latitude: -22.9068, longitude: -47.0616 },
-    { id: '3', nome: 'Token Fortnite', cultura: 'Café', latitude: -21.1775, longitude: -47.8103 },
-  ]);
-  const [plantacaoSelecionada, setPlantacaoSelecionada] = useState<string>('Fazenda Feliz');
+  const [plantacoes, setPlantacoes] = useState<PlantacaoItem[]>([]);
+  const [plantacaoSelecionada, setPlantacaoSelecionada] = useState<string>('');
 
   // Estado da recomendação
   const [gerando, setGerando] = useState(false);
-  const [recomendacao, setRecomendacao] = useState({
+  const [recomendacao, setRecomendacao] = useState<RecomendacaoResultado>({
     decisao: 'NÃO REGAR',
     cor: '#7cc795',
     motivo: 'O solo está bem abastecido (100% da água disponível) e há chuva prevista de 14,5 mm em 3 dias. Regar agora desperdiçaria água.',
@@ -53,6 +59,48 @@ export const PainelUsuario: React.FC = () => {
     chuva3d: '14,5 mm',
     probChuva: '97%',
   });
+
+  // Histórico dinâmico de recomendações
+  const [historico, setHistorico] = useState<HistoricoItem[]>([
+    {
+      id: 'h1',
+      quando: 'Hoje, 14:30',
+      fazenda: 'Fazenda Feliz',
+      decisao: 'NÃO REGAR',
+      motivo: 'Solo abastecido e chuva prevista de 14,5 mm',
+      cor: '#7cc795',
+    },
+    {
+      id: 'h2',
+      quando: 'Ontem, 08:15',
+      fazenda: 'Fazenda Triste',
+      decisao: 'REGAR',
+      motivo: 'Solo seco (14,2%) e sem chuva prevista',
+      cor: '#6fa8e8',
+    },
+    {
+      id: 'h3',
+      quando: '17/11, 09:00',
+      fazenda: 'Token Fortnite',
+      decisao: 'ATENÇÃO',
+      motivo: 'Risco de encharcamento com 45,0 mm acumulados',
+      cor: '#e0b04a',
+    },
+  ]);
+
+  const registrarHistorico = (fazendaNome: string, decisao: string, motivo: string, cor: string) => {
+    const agora = new Date();
+    const hora = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    const novoH: HistoricoItem = {
+      id: Date.now().toString(),
+      quando: `Hoje, ${hora}`,
+      fazenda: fazendaNome,
+      decisao,
+      motivo,
+      cor,
+    };
+    setHistorico((prev) => [novoH, ...prev.slice(0, 8)]);
+  };
 
   useEffect(() => {
     try {
@@ -69,29 +117,65 @@ export const PainelUsuario: React.FC = () => {
         setLimiteFazendas(Number(savedLimit) || 1);
       }
 
-      const saved = localStorage.getItem('agrosat_novo_produtor');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.nome) setUserName(parsed.nome.split(' ')[0]);
-        if (parsed.nomeFazenda) {
-          setFarmName(parsed.nomeFazenda);
-          // Atualiza o primeiro item com a fazenda do usuário
-          setPlantacoes([
-            {
-              id: 'user-farm',
-              nome: parsed.nomeFazenda,
-              cultura: parsed.plantio || 'Soja',
-              latitude: parsed.latitude || -23.5349,
-              longitude: parsed.longitude || -46.6212,
-            }
-          ]);
-          setPlantacaoSelecionada(parsed.nomeFazenda);
+      // 1. Tenta recuperar plantações já salvas de sessões anteriores
+      let listaInicial: PlantacaoItem[] = [];
+      const salvas = localStorage.getItem(STORAGE_KEY_PLANTACOES);
+
+      if (salvas) {
+        try {
+          const parsed = JSON.parse(salvas);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            listaInicial = parsed;
+          }
+        } catch {
+          listaInicial = [];
         }
-        if (parsed.plantio) setCulturaAtual(parsed.plantio);
-        if (parsed.latitude && parsed.longitude) {
-          setNovaLat(parsed.latitude.toFixed(4));
-          setNovaLng(parsed.longitude.toFixed(4));
+      }
+
+      // 2. Se não houver lista salva ainda, verifica se veio do onboarding do produtor
+      if (listaInicial.length === 0) {
+        const savedProdutor = localStorage.getItem('agrosat_novo_produtor');
+        if (savedProdutor) {
+          const parsed = JSON.parse(savedProdutor);
+          if (parsed.nome) setUserName(parsed.nome.split(' ')[0]);
+          if (parsed.nomeFazenda) {
+            listaInicial = [
+              {
+                id: 'user-farm',
+                nome: parsed.nomeFazenda,
+                cultura: parsed.plantio || 'Soja',
+                latitude: parsed.latitude || -23.5349,
+                longitude: parsed.longitude || -46.6212,
+              }
+            ];
+          }
         }
+      }
+
+      // 3. Fallback inicial padrão com as fazendas de demonstração
+      if (listaInicial.length === 0) {
+        listaInicial = [
+          { id: '1', nome: 'Fazenda Feliz', cultura: 'Soja', latitude: -23.5349, longitude: -46.6212 },
+          { id: '2', nome: 'Fazenda Triste', cultura: 'Milho', latitude: -22.9068, longitude: -47.0616 },
+          { id: '3', nome: 'Token Fortnite', cultura: 'Café', latitude: -21.1775, longitude: -47.8103 },
+        ];
+      }
+
+      // Salva no localStorage para garantir persistência contínua no Vercel
+      localStorage.setItem(STORAGE_KEY_PLANTACOES, JSON.stringify(listaInicial));
+      setPlantacoes(listaInicial);
+
+      // Define a fazenda selecionada (respeitando a última escolha)
+      const ultimaEscolhida = localStorage.getItem(STORAGE_KEY_SELECIONADA);
+      const fazendaAlvo = listaInicial.find((f) => f.nome === ultimaEscolhida) || listaInicial[0];
+
+      if (fazendaAlvo) {
+        setPlantacaoSelecionada(fazendaAlvo.nome);
+        setFarmName(fazendaAlvo.nome);
+        setCulturaAtual(fazendaAlvo.cultura);
+        setNovaLat(fazendaAlvo.latitude.toFixed(4));
+        setNovaLng(fazendaAlvo.longitude.toFixed(4));
+        setRecomendacao(calcularRecomendacao(fazendaAlvo));
       }
     } catch {
       // ignore
@@ -118,11 +202,21 @@ export const PainelUsuario: React.FC = () => {
       longitude: parseFloat(novaLng) || -46.6333,
     };
 
-    setPlantacoes((prev) => [nova, ...prev]);
+    const novaLista = [nova, ...plantacoes];
+    setPlantacoes(novaLista);
+    localStorage.setItem(STORAGE_KEY_PLANTACOES, JSON.stringify(novaLista));
+
+    // Seleciona e gera recomendação imediatamente para a nova fazenda
     setPlantacaoSelecionada(nova.nome);
     setFarmName(nova.nome);
     setCulturaAtual(nova.cultura);
-    setSalvandoFeedback(`Plantação "${novoNome}" cadastrada com sucesso! (${plantacoes.length + 1}/${limiteFazendas} utilizadas)`);
+    localStorage.setItem(STORAGE_KEY_SELECIONADA, nova.nome);
+
+    const novaRec = calcularRecomendacao(nova);
+    setRecomendacao(novaRec);
+    registrarHistorico(nova.nome, novaRec.decisao, novaRec.motivo, novaRec.cor);
+
+    setSalvandoFeedback(`Plantação "${novoNome}" cadastrada e salva com sucesso! (${novaLista.length}/${limiteFazendas} utilizadas)`);
     setNovoNome('');
     setTimeout(() => setSalvandoFeedback(null), 3500);
   };
@@ -132,21 +226,26 @@ export const PainelUsuario: React.FC = () => {
       return;
     }
 
-    setPlantacoes((prev) => {
-      const novaLista = prev.filter((p) => p.id !== id);
-      if (plantacaoSelecionada === nome) {
-        if (novaLista.length > 0) {
-          setPlantacaoSelecionada(novaLista[0].nome);
-          setFarmName(novaLista[0].nome);
-          setCulturaAtual(novaLista[0].cultura);
-        } else {
-          setPlantacaoSelecionada('');
-          setFarmName('Nenhuma fazenda cadastrada');
-          setCulturaAtual('-');
-        }
+    const novaLista = plantacoes.filter((p) => p.id !== id);
+    setPlantacoes(novaLista);
+    localStorage.setItem(STORAGE_KEY_PLANTACOES, JSON.stringify(novaLista));
+
+    if (plantacaoSelecionada === nome) {
+      if (novaLista.length > 0) {
+        const primeira = novaLista[0];
+        setPlantacaoSelecionada(primeira.nome);
+        setFarmName(primeira.nome);
+        setCulturaAtual(primeira.cultura);
+        const novaRec = calcularRecomendacao(primeira);
+        setRecomendacao(novaRec);
+        localStorage.setItem(STORAGE_KEY_SELECIONADA, primeira.nome);
+      } else {
+        setPlantacaoSelecionada('');
+        setFarmName('Nenhuma fazenda cadastrada');
+        setCulturaAtual('-');
+        localStorage.removeItem(STORAGE_KEY_SELECIONADA);
       }
-      return novaLista;
-    });
+    }
 
     try {
       const saved = localStorage.getItem('agrosat_novo_produtor');
@@ -164,39 +263,30 @@ export const PainelUsuario: React.FC = () => {
     setTimeout(() => setSalvandoFeedback(null), 3500);
   };
 
+  const handleTrocarFazenda = (nomeEscolhido: string) => {
+    setPlantacaoSelecionada(nomeEscolhido);
+    const alvo = plantacoes.find((p) => p.nome === nomeEscolhido);
+    if (alvo) {
+      setFarmName(alvo.nome);
+      setCulturaAtual(alvo.cultura);
+      localStorage.setItem(STORAGE_KEY_SELECIONADA, alvo.nome);
+      // RECALCULA A RECOMENDAÇÃO IMEDIATAMENTE PARA A FAZENDA SELECIONADA!
+      const novaRec = calcularRecomendacao(alvo);
+      setRecomendacao(novaRec);
+    }
+  };
+
   const handleGerarRecomendacao = () => {
+    const alvo = plantacoes.find((p) => p.nome === plantacaoSelecionada) || plantacoes[0];
+    if (!alvo) return;
+
     setGerando(true);
     setTimeout(() => {
       setGerando(false);
-      if (plantacaoSelecionada === 'Fazenda Triste') {
-        setRecomendacao({
-          decisao: 'REGAR',
-          cor: '#6fa8e8',
-          motivo: 'Solo em nível crítico de esgotamento hídrico e sem volume significativo de chuva nos próximos 3 dias.',
-          umidade: '14,2%',
-          chuva3d: '1,0 mm',
-          probChuva: '15%',
-        });
-      } else if (plantacaoSelecionada === 'Token Fortnite') {
-        setRecomendacao({
-          decisao: 'ATENÇÃO',
-          cor: '#e0b04a',
-          motivo: 'Risco de encharcamento. Volume acumulado alto de precipitações recentes.',
-          umidade: '41,8%',
-          chuva3d: '45,0 mm',
-          probChuva: '89%',
-        });
-      } else {
-        setRecomendacao({
-          decisao: 'NÃO REGAR',
-          cor: '#7cc795',
-          motivo: 'O solo está bem abastecido (100% da água disponível) e há chuva prevista de 14,5 mm em 3 dias. Regar agora desperdiçaria água.',
-          umidade: '29,3%',
-          chuva3d: '14,5 mm',
-          probChuva: '97%',
-        });
-      }
-    }, 600);
+      const novaRec = calcularRecomendacao(alvo);
+      setRecomendacao(novaRec);
+      registrarHistorico(alvo.nome, novaRec.decisao, novaRec.motivo, novaRec.cor);
+    }, 500);
   };
 
   return (
@@ -300,8 +390,9 @@ export const PainelUsuario: React.FC = () => {
             <h1 className="font-heading text-3xl sm:text-4xl font-bold text-white">
               Olá, {userName}
             </h1>
-            <p className="text-[#9fb5a6] text-sm mt-0.5">
-              {farmName} · {culturaAtual}
+            <p className="text-[#9fb5a6] text-sm mt-0.5 flex items-center gap-1.5">
+              <Sprout className="w-4 h-4 text-[#7cc795]" />
+              <strong className="text-white">{farmName}</strong> · Cultura: <span className="text-[#7cc795]">{culturaAtual}</span>
             </p>
           </div>
           <div className="flex items-center gap-2.5 flex-wrap">
@@ -344,7 +435,7 @@ export const PainelUsuario: React.FC = () => {
             </div>
 
             {salvandoFeedback && (
-              <div className="bg-[#1d3a2a] border border-[#7cc795]/50 text-[#7cc795] text-xs p-3 rounded-lg flex items-center gap-2">
+              <div className="bg-[#1d3a2a] border border-[#7cc795]/50 text-[#7cc795] text-xs p-3 rounded-lg flex items-center gap-2 animate-in fade-in">
                 <CheckCircle2 className="w-4 h-4 shrink-0" />
                 <span>{salvandoFeedback}</span>
               </div>
@@ -438,34 +529,48 @@ export const PainelUsuario: React.FC = () => {
                 </p>
               ) : (
                 <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
-                  {plantacoes.map((p) => (
-                    <div
-                      key={p.id}
-                      className="flex items-center justify-between bg-[#0e1712] border border-[#243a2d] rounded-xl px-3.5 py-2.5 hover:border-[#2f4838] transition-colors"
-                    >
-                      <div className="min-w-0 pr-2">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-white truncate">{p.nome}</span>
-                          <span className="text-[10px] bg-[#1d3a2a] text-[#7cc795] px-1.5 py-0.5 rounded font-mono">
-                            {p.cultura}
+                  {plantacoes.map((p) => {
+                    const isSelected = p.nome === plantacaoSelecionada;
+                    return (
+                      <div
+                        key={p.id}
+                        onClick={() => handleTrocarFazenda(p.nome)}
+                        className={`flex items-center justify-between rounded-xl px-3.5 py-2.5 transition-all cursor-pointer border ${
+                          isSelected
+                            ? 'bg-[#1a2d23] border-[#7cc795] ring-1 ring-[#7cc795]/30'
+                            : 'bg-[#0e1712] border-[#243a2d] hover:border-[#2f4838]'
+                        }`}
+                      >
+                        <div className="min-w-0 pr-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-white truncate">{p.nome}</span>
+                            <span className="text-[10px] bg-[#1d3a2a] text-[#7cc795] px-1.5 py-0.5 rounded font-mono">
+                              {p.cultura}
+                            </span>
+                            {isSelected && (
+                              <span className="text-[10px] text-[#7cc795] font-semibold">● Ativa</span>
+                            )}
+                          </div>
+                          <span className="text-[11px] text-[#9fb5a6] block mt-0.5">
+                            Coord: {p.latitude.toFixed(4)}, {p.longitude.toFixed(4)}
                           </span>
                         </div>
-                        <span className="text-[11px] text-[#9fb5a6] block mt-0.5">
-                          Coord: {p.latitude.toFixed(4)}, {p.longitude.toFixed(4)}
-                        </span>
-                      </div>
 
-                      <button
-                        type="button"
-                        onClick={() => handleExcluirPlantacao(p.id, p.nome)}
-                        className="p-1.5 text-[#9fb5a6] hover:text-red-400 hover:bg-red-950/40 rounded-lg transition-colors shrink-0"
-                        title={`Excluir ${p.nome}`}
-                        aria-label={`Excluir ${p.nome}`}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleExcluirPlantacao(p.id, p.nome);
+                          }}
+                          className="p-1.5 text-[#9fb5a6] hover:text-red-400 hover:bg-red-950/40 rounded-lg transition-colors shrink-0"
+                          title={`Excluir ${p.nome}`}
+                          aria-label={`Excluir ${p.nome}`}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -499,14 +604,7 @@ export const PainelUsuario: React.FC = () => {
               <div className="flex flex-col sm:flex-row gap-2.5">
                 <select
                   value={plantacaoSelecionada}
-                  onChange={(e) => {
-                    setPlantacaoSelecionada(e.target.value);
-                    const selected = plantacoes.find((p) => p.nome === e.target.value);
-                    if (selected) {
-                      setFarmName(selected.nome);
-                      setCulturaAtual(selected.cultura);
-                    }
-                  }}
+                  onChange={(e) => handleTrocarFazenda(e.target.value)}
                   className="flex-1 h-11 bg-[#0e1712] border border-[#2f4838] rounded-xl text-[#e6efe8] px-3 text-sm focus:outline-none focus:border-[#7cc795]"
                   aria-label="Plantação"
                 >
@@ -522,25 +620,30 @@ export const PainelUsuario: React.FC = () => {
                   disabled={gerando}
                   className="h-11 px-5 rounded-xl bg-[#eef3ee] text-[#0e1712] font-semibold text-sm hover:bg-white transition-colors whitespace-nowrap disabled:opacity-50"
                 >
-                  {gerando ? 'Calculando...' : 'Gerar recomendação'}
+                  {gerando ? 'Calculando...' : 'Recalcular'}
                 </button>
               </div>
             )}
 
-            {/* Decisão em destaque */}
+            {/* Decisão em destaque com transição suave */}
             <div className="pt-2">
-              <span 
-                className="font-heading text-4xl sm:text-5xl font-bold tracking-tight block"
-                style={{ color: recomendacao.cor }}
-              >
-                {recomendacao.decisao}
-              </span>
+              <div className="flex items-center justify-between">
+                <span 
+                  className="font-heading text-4xl sm:text-5xl font-bold tracking-tight block transition-colors duration-300"
+                  style={{ color: recomendacao.cor }}
+                >
+                  {recomendacao.decisao}
+                </span>
+                <span className="text-xs text-[#9fb5a6] bg-[#0e1712] px-2.5 py-1 rounded-md border border-[#243a2d]">
+                  Fazenda: <strong className="text-white">{plantacaoSelecionada || 'Nenhuma'}</strong>
+                </span>
+              </div>
               <p className="text-sm text-[#e6efe8] mt-2 leading-relaxed">
                 {recomendacao.motivo}
               </p>
             </div>
 
-            {/* Três Métricas Resumidas */}
+            {/* Três Métricas Resumidas da Fazenda Ativa */}
             <div className="grid grid-cols-3 gap-2.5 pt-2">
               <div className="bg-[#0e1712] border border-[#243a2d] rounded-xl p-3">
                 <span className="font-heading text-lg sm:text-xl font-bold text-white block">
@@ -579,26 +682,22 @@ export const PainelUsuario: React.FC = () => {
                 <thead>
                   <tr className="text-[#9fb5a6] border-b border-[#243a2d]">
                     <th className="py-2.5 font-medium">Quando</th>
-                    <th className="py-2.5 px-3 font-medium">Decisão</th>
+                    <th className="py-2.5 px-2 font-medium">Fazenda</th>
+                    <th className="py-2.5 px-2 font-medium">Decisão</th>
                     <th className="py-2.5 font-medium">Motivo</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#243a2d]">
-                  <tr className="hover:bg-[#1a2d23] transition-colors">
-                    <td className="py-3 text-[#9fb5a6] whitespace-nowrap">09/11, 17:17</td>
-                    <td className="py-3 px-3 font-bold text-[#7cc795] whitespace-nowrap">NÃO REGAR</td>
-                    <td className="py-3 text-[#e6efe8]">Solo abastecido e chuva prevista de 23,5 mm</td>
-                  </tr>
-                  <tr className="hover:bg-[#1a2d23] transition-colors">
-                    <td className="py-3 text-[#9fb5a6] whitespace-nowrap">08/11, 08:01</td>
-                    <td className="py-3 px-3 font-bold text-[#7cc795] whitespace-nowrap">NÃO REGAR</td>
-                    <td className="py-3 text-[#e6efe8]">Solo abastecido e chuva prevista de 63,9 mm</td>
-                  </tr>
-                  <tr className="hover:bg-[#1a2d23] transition-colors">
-                    <td className="py-3 text-[#9fb5a6] whitespace-nowrap">07/11, 07:45</td>
-                    <td className="py-3 px-3 font-bold text-[#6fa8e8] whitespace-nowrap">REGAR</td>
-                    <td className="py-3 text-[#e6efe8]">Solo seco e sem chuva prevista</td>
-                  </tr>
+                  {historico.map((h) => (
+                    <tr key={h.id} className="hover:bg-[#1a2d23] transition-colors">
+                      <td className="py-3 text-[#9fb5a6] whitespace-nowrap">{h.quando}</td>
+                      <td className="py-3 px-2 font-semibold text-white whitespace-nowrap">{h.fazenda}</td>
+                      <td className="py-3 px-2 font-bold whitespace-nowrap" style={{ color: h.cor }}>
+                        {h.decisao}
+                      </td>
+                      <td className="py-3 text-[#e6efe8]">{h.motivo}</td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
