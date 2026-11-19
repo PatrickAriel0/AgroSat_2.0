@@ -119,9 +119,9 @@ export default function CartaoSolo({ ponto }: Props) {
         {estado.tipo === "ok" && <ResultadoSolo solo={estado.solo} />}
       </div>
 
-      <p className="mt-4 text-sm text-agro-muted">
-        Fonte: IBGE, Mapa de Solos do Brasil (escala 1:250.000). É um mapa regional: mostra o
-        solo predominante na área e não substitui a análise de laboratório da sua terra.
+      <p className="mt-4 text-xs text-agro-muted">
+        Fonte: ISRIC SoilGrids 2.0 (Global Soil Information) e IBGE/Embrapa Solos (SiBCS escala 1:250.000). 
+        A análise de satélite mapeia o horizonte superficial e orienta o manejo hídrico, sem substituir o laudo de laboratório.
       </p>
     </section>
   );
@@ -130,25 +130,138 @@ export default function CartaoSolo({ ponto }: Props) {
 function ResultadoSolo({ solo }: { solo: SoloInfo }) {
   const ordem = solo.ordem ?? acharOrdem(solo.descricao);
   const explicacao = ordem ? SOLOS_SIBCS[ordem] : undefined;
+  const comp = solo.composicao;
 
   return (
-    <div>
-      <p className="font-heading text-3xl font-bold text-agro-primary" data-testid="solo-nome">
-        {solo.descricao}
-      </p>
-      {ordem && (
-        <p className="mt-1 text-sm text-agro-muted">Ordem do solo: {ordem}</p>
+    <div className="space-y-4">
+      <div>
+        <p className="font-heading text-3xl font-bold text-agro-primary" data-testid="solo-nome">
+          {solo.descricao}
+        </p>
+        {ordem && (
+          <p className="mt-1 text-sm text-agro-muted">Ordem do solo: {ordem}</p>
+        )}
+      </div>
+
+      {/* Composição Granulométrica e Físico-Química (SoilGrids / SiBCS) */}
+      {comp && (
+        <div className="rounded-xl border border-agro-border bg-[#0e1712] p-4 sm:p-5 space-y-3.5">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#243a2d] pb-2.5">
+            <div>
+              <span className="text-xs uppercase tracking-wider text-agro-primary font-semibold">
+                Análise Física & Granulometria
+              </span>
+              <h3 className="text-base font-bold text-agro-white">
+                Composição do Solo ({comp.fonteDados})
+              </h3>
+            </div>
+            <span className="text-[11px] px-2.5 py-1 rounded bg-[#1d3a2a] text-[#7cc795] border border-[#7cc795]/30 font-medium">
+              Profundidade: 0-5 cm
+            </span>
+          </div>
+
+          {/* Barra Visual de Composição Granulométrica */}
+          <div className="space-y-1.5">
+            <div className="flex justify-between text-xs text-agro-muted">
+              <span>Distribuição mineral das frações:</span>
+              <span className="font-mono text-[#e6efe8]">100% total</span>
+            </div>
+            <div className="h-4 w-full flex rounded-full overflow-hidden border border-[#2f4838] bg-black/40">
+              <div
+                style={{ width: `${comp.argila}%` }}
+                className="bg-[#c26338] transition-all duration-500 relative group"
+                title={`Argila: ${comp.argila}%`}
+              />
+              <div
+                style={{ width: `${comp.areia}%` }}
+                className="bg-[#eab308] transition-all duration-500 relative group"
+                title={`Areia: ${comp.areia}%`}
+              />
+              <div
+                style={{ width: `${comp.silte}%` }}
+                className="bg-[#10b981] transition-all duration-500 relative group"
+                title={`Silte: ${comp.silte}%`}
+              />
+            </div>
+
+            {/* Legenda dos 3 componentes */}
+            <div className="grid grid-cols-3 gap-2 pt-1">
+              <div className="flex items-center gap-1.5">
+                <span className="w-3 h-3 rounded-sm bg-[#c26338] shrink-0" />
+                <div className="text-xs">
+                  <span className="text-agro-muted block text-[11px]">Argila</span>
+                  <strong className="text-agro-white font-mono">{comp.argila}%</strong>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-3 h-3 rounded-sm bg-[#eab308] shrink-0" />
+                <div className="text-xs">
+                  <span className="text-agro-muted block text-[11px]">Areia</span>
+                  <strong className="text-agro-white font-mono">{comp.areia}%</strong>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-3 h-3 rounded-sm bg-[#10b981] shrink-0" />
+                <div className="text-xs">
+                  <span className="text-agro-muted block text-[11px]">Silte</span>
+                  <strong className="text-agro-white font-mono">{comp.silte}%</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Grid com Propriedades Agronômicas */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-2 border-t border-[#243a2d]">
+            <div className="rounded-lg bg-agro-bg p-2.5">
+              <span className="text-[11px] text-agro-muted block">pH estimado</span>
+              <span className="text-base font-bold text-agro-white font-mono">{comp.ph}</span>
+              <span className="text-[10px] text-agro-primary block mt-0.5">
+                {comp.ph < 5.0 ? 'Ácido' : comp.ph <= 6.0 ? 'Moderado' : 'Neutro/Básico'}
+              </span>
+            </div>
+
+            <div className="rounded-lg bg-agro-bg p-2.5">
+              <span className="text-[11px] text-agro-muted block">Textura SiBCS</span>
+              <span className="text-xs font-bold text-agro-white block truncate" title={comp.textura}>
+                {comp.textura}
+              </span>
+              <span className="text-[10px] text-[#9fb5a6] block mt-0.5">Triângulo Textural</span>
+            </div>
+
+            <div className="rounded-lg bg-agro-bg p-2.5">
+              <span className="text-[11px] text-agro-muted block">Retenção de Água</span>
+              <span
+                className={`text-xs font-bold px-1.5 py-0.5 rounded inline-block mt-0.5 ${
+                  comp.retencaoHidrica === 'Alta'
+                    ? 'bg-emerald-950 text-[#7cc795] border border-[#7cc795]/30'
+                    : comp.retencaoHidrica === 'Média'
+                    ? 'bg-amber-950 text-amber-300 border border-amber-600/30'
+                    : 'bg-blue-950 text-blue-300 border border-blue-600/30'
+                }`}
+              >
+                {comp.retencaoHidrica}
+              </span>
+              <span className="text-[10px] text-[#9fb5a6] block mt-0.5">Capacidade de campo</span>
+            </div>
+
+            <div className="rounded-lg bg-agro-bg p-2.5">
+              <span className="text-[11px] text-agro-muted block">Matéria Orgânica</span>
+              <span className="text-base font-bold text-agro-white font-mono">{comp.materiaOrganica}%</span>
+              <span className="text-[10px] text-agro-primary block mt-0.5">Horizonte superficial</span>
+            </div>
+          </div>
+        </div>
       )}
 
       {explicacao ? (
-        <dl className="mt-3 grid gap-3 sm:grid-cols-2">
-          <div className="rounded-lg bg-agro-bg px-3 py-2">
-            <dt className="text-sm text-agro-muted">Como é esse solo</dt>
-            <dd className="text-base text-agro-white">{explicacao.resumo}</dd>
+        <dl className="grid gap-3 sm:grid-cols-2">
+          <div className="rounded-lg bg-agro-bg px-3 py-2.5">
+            <dt className="text-sm text-agro-muted font-medium">Características agronômicas</dt>
+            <dd className="text-sm text-agro-white mt-1 leading-relaxed">{explicacao.resumo}</dd>
           </div>
-          <div className="rounded-lg bg-agro-bg px-3 py-2">
-            <dt className="text-sm text-agro-muted">Atenção</dt>
-            <dd className="text-base text-agro-white">{explicacao.atencao}</dd>
+          <div className="rounded-lg bg-agro-bg px-3 py-2.5">
+            <dt className="text-sm text-agro-muted font-medium">Recomendações e atenção</dt>
+            <dd className="text-sm text-agro-white mt-1 leading-relaxed">{explicacao.atencao}</dd>
           </div>
         </dl>
       ) : (

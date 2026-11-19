@@ -14,7 +14,8 @@ import {
   Satellite, 
   ArrowLeft, 
   MapPin, 
-  CheckCircle2 
+  CheckCircle2,
+  Trash2
 } from 'lucide-react';
 
 setWorkerUrl(urlDoWorker);
@@ -256,6 +257,32 @@ export const MapaPlantacoes: React.FC = () => {
     setTimeout(() => setAvisoSucesso(null), 4000);
   };
 
+  const handleExcluirFazenda = (e: React.MouseEvent, fazenda: FazendaPonto) => {
+    e.stopPropagation();
+    if (!window.confirm(`Tem certeza que deseja excluir a plantação "${fazenda.nome}" do mapa?`)) {
+      return;
+    }
+
+    setFazendas((prev) => {
+      const novaLista = prev.filter((f) => f.id !== fazenda.id);
+      if (selecionadaId === fazenda.id && novaLista.length > 0) {
+        setSelecionadaId(novaLista[0].id);
+      }
+      return novaLista;
+    });
+
+    if (fazenda.isUsuario) {
+      try {
+        localStorage.removeItem('agrosat_novo_produtor');
+      } catch {
+        // ignore
+      }
+    }
+
+    setAvisoSucesso(`Plantação "${fazenda.nome}" removida do mapa com sucesso!`);
+    setTimeout(() => setAvisoSucesso(null), 3500);
+  };
+
   const fazendaAtiva = fazendas.find((f) => f.id === selecionadaId) || fazendas[0];
 
   return (
@@ -327,13 +354,24 @@ export const MapaPlantacoes: React.FC = () => {
                       }`}
                     >
                       <div className="flex items-center justify-between mb-1">
-                        <b className="font-heading text-base font-bold text-white flex items-center gap-1.5">
+                        <b className="font-heading text-base font-bold text-white flex items-center gap-1.5 truncate pr-2">
                           {fazenda.isUsuario && (
-                            <span className="w-2 h-2 rounded-full bg-[#4ade80] animate-pulse"></span>
+                            <span className="w-2 h-2 rounded-full bg-[#4ade80] animate-pulse shrink-0"></span>
                           )}
-                          {fazenda.nome}
+                          <span className="truncate">{fazenda.nome}</span>
                         </b>
-                        <span className="text-[11px] text-[#9fb5a6] font-mono">{fazenda.cultura}</span>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className="text-[11px] text-[#9fb5a6] font-mono">{fazenda.cultura}</span>
+                          <button
+                            type="button"
+                            onClick={(e) => handleExcluirFazenda(e, fazenda)}
+                            className="p-1 text-[#9fb5a6] hover:text-red-400 hover:bg-red-950/40 rounded transition-colors"
+                            title={`Excluir ${fazenda.nome}`}
+                            aria-label={`Excluir ${fazenda.nome}`}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
 
                       <div className="flex items-center gap-2 mb-1">

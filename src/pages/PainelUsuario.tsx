@@ -7,7 +7,8 @@ import {
   ArrowRight,
   LogOut,
   Map as MapIcon,
-  AlertTriangle
+  AlertTriangle,
+  Trash2
 } from 'lucide-react';
 
 interface PlantacaoItem {
@@ -118,8 +119,48 @@ export const PainelUsuario: React.FC = () => {
     };
 
     setPlantacoes((prev) => [nova, ...prev]);
+    setPlantacaoSelecionada(nova.nome);
+    setFarmName(nova.nome);
+    setCulturaAtual(nova.cultura);
     setSalvandoFeedback(`Plantação "${novoNome}" cadastrada com sucesso! (${plantacoes.length + 1}/${limiteFazendas} utilizadas)`);
     setNovoNome('');
+    setTimeout(() => setSalvandoFeedback(null), 3500);
+  };
+
+  const handleExcluirPlantacao = (id: string, nome: string) => {
+    if (!window.confirm(`Deseja realmente excluir a plantação "${nome}"? Esta ação liberará 1 vaga no seu plano.`)) {
+      return;
+    }
+
+    setPlantacoes((prev) => {
+      const novaLista = prev.filter((p) => p.id !== id);
+      if (plantacaoSelecionada === nome) {
+        if (novaLista.length > 0) {
+          setPlantacaoSelecionada(novaLista[0].nome);
+          setFarmName(novaLista[0].nome);
+          setCulturaAtual(novaLista[0].cultura);
+        } else {
+          setPlantacaoSelecionada('');
+          setFarmName('Nenhuma fazenda cadastrada');
+          setCulturaAtual('-');
+        }
+      }
+      return novaLista;
+    });
+
+    try {
+      const saved = localStorage.getItem('agrosat_novo_produtor');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.nomeFazenda === nome) {
+          localStorage.removeItem('agrosat_novo_produtor');
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    setSalvandoFeedback(`Plantação "${nome}" excluída com sucesso! Espaço liberado no seu plano.`);
     setTimeout(() => setSalvandoFeedback(null), 3500);
   };
 
@@ -377,6 +418,57 @@ export const PainelUsuario: React.FC = () => {
                 Salvar plantação
               </button>
             </form>
+
+            {/* Lista e Gerenciamento de Plantações Ativas */}
+            <div className="pt-4 border-t border-[#243a2d] space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-white">
+                  Plantações cadastradas ({plantacoes.length}/{limiteFazendas})
+                </span>
+                <span className="text-[11px] text-[#9fb5a6]">
+                  {limiteFazendas - plantacoes.length > 0
+                    ? `${limiteFazendas - plantacoes.length} vaga(s) disponível(is)`
+                    : 'Limite do plano atingido'}
+                </span>
+              </div>
+
+              {plantacoes.length === 0 ? (
+                <p className="text-xs text-[#9fb5a6] bg-[#0e1712] p-3 rounded-xl border border-[#243a2d]">
+                  Nenhuma plantação cadastrada no momento. Adicione sua primeira propriedade no formulário acima.
+                </p>
+              ) : (
+                <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                  {plantacoes.map((p) => (
+                    <div
+                      key={p.id}
+                      className="flex items-center justify-between bg-[#0e1712] border border-[#243a2d] rounded-xl px-3.5 py-2.5 hover:border-[#2f4838] transition-colors"
+                    >
+                      <div className="min-w-0 pr-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-white truncate">{p.nome}</span>
+                          <span className="text-[10px] bg-[#1d3a2a] text-[#7cc795] px-1.5 py-0.5 rounded font-mono">
+                            {p.cultura}
+                          </span>
+                        </div>
+                        <span className="text-[11px] text-[#9fb5a6] block mt-0.5">
+                          Coord: {p.latitude.toFixed(4)}, {p.longitude.toFixed(4)}
+                        </span>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleExcluirPlantacao(p.id, p.nome)}
+                        className="p-1.5 text-[#9fb5a6] hover:text-red-400 hover:bg-red-950/40 rounded-lg transition-colors shrink-0"
+                        title={`Excluir ${p.nome}`}
+                        aria-label={`Excluir ${p.nome}`}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Card 02 - Recomendação */}
@@ -397,28 +489,43 @@ export const PainelUsuario: React.FC = () => {
               </Link>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-2.5">
-              <select
-                value={plantacaoSelecionada}
-                onChange={(e) => setPlantacaoSelecionada(e.target.value)}
-                className="flex-1 h-11 bg-[#0e1712] border border-[#2f4838] rounded-xl text-[#e6efe8] px-3 text-sm focus:outline-none focus:border-[#7cc795]"
-                aria-label="Plantação"
-              >
-                {plantacoes.map((p) => (
-                  <option key={p.id} value={p.nome}>
-                    {p.nome} ({p.cultura})
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                onClick={handleGerarRecomendacao}
-                disabled={gerando}
-                className="h-11 px-5 rounded-xl bg-[#eef3ee] text-[#0e1712] font-semibold text-sm hover:bg-white transition-colors whitespace-nowrap disabled:opacity-50"
-              >
-                {gerando ? 'Calculando...' : 'Gerar recomendação'}
-              </button>
-            </div>
+            {plantacoes.length === 0 ? (
+              <div className="bg-[#0e1712] border border-[#243a2d] rounded-xl p-4 text-center">
+                <p className="text-sm text-[#9fb5a6]">
+                  Nenhuma plantação ativa. Cadastre uma no Card 01 para calcular a recomendação hídrica.
+                </p>
+              </div>
+            ) : (
+              <div className="flex flex-col sm:flex-row gap-2.5">
+                <select
+                  value={plantacaoSelecionada}
+                  onChange={(e) => {
+                    setPlantacaoSelecionada(e.target.value);
+                    const selected = plantacoes.find((p) => p.nome === e.target.value);
+                    if (selected) {
+                      setFarmName(selected.nome);
+                      setCulturaAtual(selected.cultura);
+                    }
+                  }}
+                  className="flex-1 h-11 bg-[#0e1712] border border-[#2f4838] rounded-xl text-[#e6efe8] px-3 text-sm focus:outline-none focus:border-[#7cc795]"
+                  aria-label="Plantação"
+                >
+                  {plantacoes.map((p) => (
+                    <option key={p.id} value={p.nome}>
+                      {p.nome} ({p.cultura})
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={handleGerarRecomendacao}
+                  disabled={gerando}
+                  className="h-11 px-5 rounded-xl bg-[#eef3ee] text-[#0e1712] font-semibold text-sm hover:bg-white transition-colors whitespace-nowrap disabled:opacity-50"
+                >
+                  {gerando ? 'Calculando...' : 'Gerar recomendação'}
+                </button>
+              </div>
+            )}
 
             {/* Decisão em destaque */}
             <div className="pt-2">
