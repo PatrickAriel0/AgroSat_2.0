@@ -19,7 +19,31 @@ import {
 
 setWorkerUrl(urlDoWorker);
 
-const ESTILO_PADRAO = 'https://tiles.openfreemap.org/styles/liberty';
+const ESTILO_PADRAO: any = {
+  version: 8,
+  sources: {
+    'carto-voyager': {
+      type: 'raster',
+      tiles: [
+        'https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+        'https://b.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+        'https://c.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+        'https://d.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png'
+      ],
+      tileSize: 256,
+      attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
+    }
+  },
+  layers: [
+    {
+      id: 'carto-voyager-tiles',
+      type: 'raster',
+      source: 'carto-voyager',
+      minzoom: 0,
+      maxzoom: 20
+    }
+  ]
+};
 
 interface FazendaPonto {
   id: string;
