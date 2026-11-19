@@ -38,14 +38,15 @@ export const AdminCooperativa: React.FC = () => {
   const [excluindoId, setExcluindoId] = useState<number | string | null>(null);
 
   const usuarioAtivo = UsuarioService.getUsuarioAtivo();
+  const isAdmin = usuarioAtivo?.tipo === 'ADMIN' || usuarioAtivo?.email === 'fernanda@email.com';
 
   const carregarDados = async () => {
     setCarregando(true);
-    setCarregandoUsuarios(true);
+    if (isAdmin) setCarregandoUsuarios(true);
     try {
       const [listaApi, listaUsuariosApi] = await Promise.all([
         FazendaService.listar(),
-        UsuarioService.listar(),
+        isAdmin ? UsuarioService.listar() : Promise.resolve([]),
       ]);
       
       const formatadas: FazendaCooperadaView[] = listaApi.map((f) => {
@@ -97,6 +98,10 @@ export const AdminCooperativa: React.FC = () => {
 
   const handleExcluirUsuario = async (u: Usuario) => {
     if (!u.id) return;
+    if (!isAdmin) {
+      alert('Acesso negado: apenas administradores possuem permissão para excluir contas de usuários.');
+      return;
+    }
     if (u.email === 'fernanda@email.com' || (usuarioAtivo && String(usuarioAtivo.id) === String(u.id))) {
       alert('Você não pode excluir a sua própria conta de Administrador.');
       return;
@@ -376,95 +381,97 @@ export const AdminCooperativa: React.FC = () => {
           </div>
         </div>
 
-        {/* Gestão de Produtores & Usuários (Acesso Administrador - Fernanda) */}
-        <div className="bg-[#14211a] border border-[#243a2d] rounded-2xl p-6 sm:p-7 space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div className="flex items-center gap-2.5">
-              <Users className="w-5 h-5 text-[#7cc795]" />
-              <h2 className="font-heading text-xl sm:text-2xl font-bold text-white">
-                Gestão de Usuários e Produtores
-              </h2>
+        {/* Gestão de Produtores & Usuários (Acesso Restrito Exclusivo: Administrador - Fernanda) */}
+        {isAdmin && (
+          <div className="bg-[#14211a] border border-[#243a2d] rounded-2xl p-6 sm:p-7 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="flex items-center gap-2.5">
+                <Users className="w-5 h-5 text-[#7cc795]" />
+                <h2 className="font-heading text-xl sm:text-2xl font-bold text-white">
+                  Gestão de Usuários e Produtores
+                </h2>
+              </div>
+              <span className="text-xs text-[#9fb5a6] bg-[#0e1712] px-3 py-1 rounded-lg border border-[#243a2d]">
+                {usuarios.length} usuários cadastrados na API Java
+              </span>
             </div>
-            <span className="text-xs text-[#9fb5a6] bg-[#0e1712] px-3 py-1 rounded-lg border border-[#243a2d]">
-              {usuarios.length} usuários cadastrados na API Java
-            </span>
-          </div>
 
-          <p className="text-xs text-[#9fb5a6]">
-            Como Administradora (Fernanda), você pode auditar e remover contas de usuários e produtores diretamente na API REST Java via requisição <code className="text-[#7cc795] font-mono">DELETE /usuarios/&#123;id&#125;</code>.
-          </p>
+            <p className="text-xs text-[#9fb5a6]">
+              Como Administradora (Fernanda), você pode auditar e remover contas de usuários e produtores diretamente na API REST Java via requisição <code className="text-[#7cc795] font-mono">DELETE /usuarios/&#123;id&#125;</code>.
+            </p>
 
-          {carregandoUsuarios ? (
-            <div className="py-8 text-center text-xs text-[#9fb5a6] flex items-center justify-center gap-2">
-              <RefreshCw className="w-4 h-4 animate-spin text-[#7cc795]" />
-              <span>Consultando usuários na API Java...</span>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm border-collapse">
-                <thead>
-                  <tr className="text-[#9fb5a6] border-b border-[#243a2d] text-xs">
-                    <th className="py-2.5 font-medium">ID</th>
-                    <th className="py-2.5 px-3 font-medium">Nome</th>
-                    <th className="py-2.5 px-3 font-medium">E-mail</th>
-                    <th className="py-2.5 px-3 font-medium">Tipo</th>
-                    <th className="py-2.5 px-3 font-medium">Data de Cadastro</th>
-                    <th className="py-2.5 font-medium text-right">Ação</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#243a2d]">
-                  {usuarios.map((u) => {
-                    const isSelf = u.email === 'fernanda@email.com' || (usuarioAtivo && String(usuarioAtivo.id) === String(u.id));
-                    return (
-                      <tr key={u.id} className="hover:bg-[#1a2d23] transition-colors text-xs">
-                        <td className="py-3 font-mono text-[#9fb5a6]">#{u.id}</td>
-                        <td className="py-3 px-3 font-medium text-white">
-                          <div className="flex items-center gap-1.5">
-                            {u.tipo === 'ADMIN' ? (
-                              <Shield className="w-3.5 h-3.5 text-[#e0b04a] shrink-0" />
+            {carregandoUsuarios ? (
+              <div className="py-8 text-center text-xs text-[#9fb5a6] flex items-center justify-center gap-2">
+                <RefreshCw className="w-4 h-4 animate-spin text-[#7cc795]" />
+                <span>Consultando usuários na API Java...</span>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm border-collapse">
+                  <thead>
+                    <tr className="text-[#9fb5a6] border-b border-[#243a2d] text-xs">
+                      <th className="py-2.5 font-medium">ID</th>
+                      <th className="py-2.5 px-3 font-medium">Nome</th>
+                      <th className="py-2.5 px-3 font-medium">E-mail</th>
+                      <th className="py-2.5 px-3 font-medium">Tipo</th>
+                      <th className="py-2.5 px-3 font-medium">Data de Cadastro</th>
+                      <th className="py-2.5 font-medium text-right">Ação</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#243a2d]">
+                    {usuarios.map((u) => {
+                      const isSelf = u.email === 'fernanda@email.com' || (usuarioAtivo && String(usuarioAtivo.id) === String(u.id));
+                      return (
+                        <tr key={u.id} className="hover:bg-[#1a2d23] transition-colors text-xs">
+                          <td className="py-3 font-mono text-[#9fb5a6]">#{u.id}</td>
+                          <td className="py-3 px-3 font-medium text-white">
+                            <div className="flex items-center gap-1.5">
+                              {u.tipo === 'ADMIN' ? (
+                                <Shield className="w-3.5 h-3.5 text-[#e0b04a] shrink-0" />
+                              ) : (
+                                <UserCheck className="w-3.5 h-3.5 text-[#7cc795] shrink-0" />
+                              )}
+                              <span>{u.nome}</span>
+                            </div>
+                          </td>
+                          <td className="py-3 px-3 text-[#9fb5a6] font-mono">{u.email}</td>
+                          <td className="py-3 px-3">
+                            <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded ${
+                              u.tipo === 'ADMIN'
+                                ? 'bg-[#3a2f12] text-[#f3d98b] border border-[#e0b04a]/40'
+                                : u.tipo === 'TECNICO'
+                                ? 'bg-[#12283a] text-[#8bc3f3] border border-[#4a9ee0]/40'
+                                : 'bg-[#1d3a2a] text-[#7cc795] border border-[#7cc795]/30'
+                            }`}>
+                              {u.tipo || 'PRODUTOR'}
+                            </span>
+                          </td>
+                          <td className="py-3 px-3 text-[#9fb5a6]">{u.dataCadastro || '2026-11-19'}</td>
+                          <td className="py-3 text-right">
+                            {isSelf ? (
+                              <span className="text-[10px] text-[#9fb5a6] italic">Sua conta</span>
                             ) : (
-                              <UserCheck className="w-3.5 h-3.5 text-[#7cc795] shrink-0" />
+                              <button
+                                type="button"
+                                onClick={() => handleExcluirUsuario(u)}
+                                disabled={excluindoId === u.id}
+                                className="p-1.5 text-[#9fb5a6] hover:text-red-400 hover:bg-red-950/40 rounded-lg transition-colors disabled:opacity-50 inline-flex items-center gap-1"
+                                title={`Excluir ${u.nome} (DELETE /usuarios/${u.id})`}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                                <span className="hidden sm:inline text-[11px]">Excluir</span>
+                              </button>
                             )}
-                            <span>{u.nome}</span>
-                          </div>
-                        </td>
-                        <td className="py-3 px-3 text-[#9fb5a6] font-mono">{u.email}</td>
-                        <td className="py-3 px-3">
-                          <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded ${
-                            u.tipo === 'ADMIN'
-                              ? 'bg-[#3a2f12] text-[#f3d98b] border border-[#e0b04a]/40'
-                              : u.tipo === 'TECNICO'
-                              ? 'bg-[#12283a] text-[#8bc3f3] border border-[#4a9ee0]/40'
-                              : 'bg-[#1d3a2a] text-[#7cc795] border border-[#7cc795]/30'
-                          }`}>
-                            {u.tipo || 'PRODUTOR'}
-                          </span>
-                        </td>
-                        <td className="py-3 px-3 text-[#9fb5a6]">{u.dataCadastro || '2026-11-19'}</td>
-                        <td className="py-3 text-right">
-                          {isSelf ? (
-                            <span className="text-[10px] text-[#9fb5a6] italic">Sua conta</span>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => handleExcluirUsuario(u)}
-                              disabled={excluindoId === u.id}
-                              className="p-1.5 text-[#9fb5a6] hover:text-red-400 hover:bg-red-950/40 rounded-lg transition-colors disabled:opacity-50 inline-flex items-center gap-1"
-                              title={`Excluir ${u.nome} (DELETE /usuarios/${u.id})`}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                              <span className="hidden sm:inline text-[11px]">Excluir</span>
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
