@@ -50,6 +50,15 @@ export interface DecisaoIrrigacao {
   cor: 'green' | 'amber' | 'blue';
 }
 
+export interface Usuario {
+  id?: number | string;
+  nome: string;
+  email: string;
+  senha?: string;
+  tipo?: 'PRODUTOR' | 'ADMIN' | 'TECNICO' | string;
+  dataCadastro?: string;
+}
+
 export interface Integrante {
   id: string;
   nome: string;
