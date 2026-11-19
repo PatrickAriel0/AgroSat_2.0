@@ -16,33 +16,30 @@ import { buscarLocais, obterPosicaoAtual } from "../services/localizacao";
 setWorkerUrl(urlDoWorker);
 
 /**
- * Estilo de mapa cartográfico de alta fidelidade e disponibilidade imediata.
- * Utiliza tiles raster CartoDB Voyager / OpenStreetMap, garantindo carregamento instantâneo
- * sem travamentos de WebGL ou bloqueios por extensões de navegador/redes institucionais.
+ * Estilo de mapa oficial e gratuito OpenStreetMap.
+ * Não requer chave de API, não possui marcas d'água e tem disponibilidade global permanente.
  */
 const ESTILO_PADRAO: any = {
   version: 8,
   sources: {
-    "carto-voyager": {
+    "osm-tiles": {
       type: "raster",
       tiles: [
-        "https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png",
-        "https://b.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png",
-        "https://c.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png",
-        "https://d.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png",
+        "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
       ],
       tileSize: 256,
       attribution:
-        '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions" target="_blank">CARTO</a>',
+        '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors',
+      maxzoom: 19,
     },
   },
   layers: [
     {
-      id: "carto-voyager-tiles",
+      id: "osm-tiles-layer",
       type: "raster",
-      source: "carto-voyager",
+      source: "osm-tiles",
       minzoom: 0,
-      maxzoom: 20,
+      maxzoom: 19,
     },
   ],
 };
