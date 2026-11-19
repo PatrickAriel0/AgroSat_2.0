@@ -28,6 +28,9 @@ interface HistoricoItem {
   decisao: string;
   motivo: string;
   cor: string;
+  umidade?: string;
+  chuva3d?: string;
+  probChuva?: string;
 }
 
 export const PainelUsuario: React.FC = () => {
@@ -52,57 +55,48 @@ export const PainelUsuario: React.FC = () => {
   const [plantacoes, setPlantacoes] = useState<PlantacaoItem[]>([]);
   const [plantacaoSelecionada, setPlantacaoSelecionada] = useState<string>('');
 
-  // Estado da recomendação
+  // Estado da recomendação (inicia vazio para novos usuários)
   const [gerando, setGerando] = useState(false);
-  const [recomendacao, setRecomendacao] = useState<RecomendacaoResultado>({
-    decisao: 'NÃO REGAR',
-    cor: '#7cc795',
-    motivo: 'O solo está bem abastecido (100% da água disponível) e há chuva prevista de 14,5 mm em 3 dias. Regar agora desperdiçaria água.',
-    umidade: '29,3%',
-    chuva3d: '14,5 mm',
-    probChuva: '97%',
-  });
+  const [recomendacao, setRecomendacao] = useState<RecomendacaoResultado | null>(null);
 
-  // Histórico dinâmico de recomendações
-  const [historico, setHistorico] = useState<HistoricoItem[]>([
-    {
-      id: 'h1',
-      quando: 'Hoje, 14:30',
-      fazenda: 'Fazenda Feliz',
-      decisao: 'NÃO REGAR',
-      motivo: 'Solo abastecido e chuva prevista de 14,5 mm',
-      cor: '#7cc795',
-    },
-    {
-      id: 'h2',
-      quando: 'Ontem, 08:15',
-      fazenda: 'Fazenda Triste',
-      decisao: 'REGAR',
-      motivo: 'Solo seco (14,2%) e sem chuva prevista',
-      cor: '#6fa8e8',
-    },
-    {
-      id: 'h3',
-      quando: '17/11, 09:00',
-      fazenda: 'Token Fortnite',
-      decisao: 'ATENÇÃO',
-      motivo: 'Risco de encharcamento com 45,0 mm acumulados',
-      cor: '#e0b04a',
-    },
-  ]);
+  // Histórico de recomendações (inicia vazio para novos usuários)
+  const [historico, setHistorico] = useState<HistoricoItem[]>([]);
 
-  const registrarHistorico = (fazendaNome: string, decisao: string, motivo: string, cor: string) => {
+  const getHistoricoStorageKey = () => {
+    const usuarioAtivo = UsuarioService.getUsuarioAtivo();
+    if (usuarioAtivo?.email) return `agrosat_historico_${usuarioAtivo.email.trim().toLowerCase()}`;
+    const savedProdutor = localStorage.getItem('agrosat_novo_produtor');
+    if (savedProdutor) {
+      try {
+        const p = JSON.parse(savedProdutor);
+        if (p.email) return `agrosat_historico_${p.email.trim().toLowerCase()}`;
+      } catch {}
+    }
+    return 'agrosat_historico_anonimo';
+  };
+
+  const registrarHistorico = (fazendaNome: string, rec: RecomendacaoResultado) => {
     const agora = new Date();
     const hora = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
     const novoH: HistoricoItem = {
       id: Date.now().toString(),
       quando: `Hoje, ${hora}`,
       fazenda: fazendaNome,
-      decisao,
-      motivo,
-      cor,
+      decisao: rec.decisao,
+      motivo: rec.motivo,
+      cor: rec.cor,
+      umidade: rec.umidade,
+      chuva3d: rec.chuva3d,
+      probChuva: rec.probChuva,
     };
-    setHistorico((prev) => [novoH, ...prev.slice(0, 8)]);
+    setHistorico((prev) => {
+      const atualizado = [novoH, ...prev.slice(0, 9)];
+      try {
+        const storageKey = getHistoricoStorageKey();
+        localStorage.setItem(storageKey, JSON.stringify(atualizado));
+      } catch {}
+      return atualizado;
+    });
   };
 
   useEffect(() => {
@@ -172,6 +166,27 @@ export const PainelUsuario: React.FC = () => {
         }
       }
 
+      // Carrega histórico existente do usuário ativo
+      const storageKey = getHistoricoStorageKey();
+      const savedH = localStorage.getItem(storageKey);
+      if (savedH) {
+        try {
+          const parsedH = JSON.parse(savedH);
+          if (Array.isArray(parsedH) && parsedH.length > 0) {
+            setHistorico(parsedH);
+            const ultima = parsedH[0];
+            setRecomendacao({
+              decisao: ultima.decisao as any,
+              cor: ultima.cor,
+              motivo: ultima.motivo,
+              umidade: ultima.umidade || '--',
+              chuva3d: ultima.chuva3d || '--',
+              probChuva: ultima.probChuva || '--',
+            });
+          }
+        } catch {}
+      }
+
       // 3. Fallback inicial padrão com as fazendas de demonstração apenas se não houver nenhuma
       if (listaInicial.length === 0) {
         listaInicial = [
@@ -197,7 +212,6 @@ export const PainelUsuario: React.FC = () => {
         setCulturaAtual(fazendaAlvo.cultura);
         setNovaLat(fazendaAlvo.latitude.toFixed(4));
         setNovaLng(fazendaAlvo.longitude.toFixed(4));
-        setRecomendacao(calcularRecomendacao(fazendaAlvo));
       }
     } catch {
       // ignore
@@ -236,7 +250,7 @@ export const PainelUsuario: React.FC = () => {
 
     const novaRec = calcularRecomendacao(nova);
     setRecomendacao(novaRec);
-    registrarHistorico(nova.nome, novaRec.decisao, novaRec.motivo, novaRec.cor);
+    registrarHistorico(nova.nome, novaRec);
 
     setSalvandoFeedback(`Plantação "${novoNome}" cadastrada e salva com sucesso! (${novaLista.length}/${limiteFazendas} utilizadas)`);
     setNovoNome('');
@@ -258,13 +272,25 @@ export const PainelUsuario: React.FC = () => {
         setPlantacaoSelecionada(primeira.nome);
         setFarmName(primeira.nome);
         setCulturaAtual(primeira.cultura);
-        const novaRec = calcularRecomendacao(primeira);
-        setRecomendacao(novaRec);
+        const anterior = historico.find((h) => h.fazenda === primeira.nome);
+        if (anterior) {
+          setRecomendacao({
+            decisao: anterior.decisao as any,
+            cor: anterior.cor,
+            motivo: anterior.motivo,
+            umidade: anterior.umidade || '--',
+            chuva3d: anterior.chuva3d || '--',
+            probChuva: anterior.probChuva || '--',
+          });
+        } else {
+          setRecomendacao(null);
+        }
         localStorage.setItem(STORAGE_KEY_SELECIONADA, primeira.nome);
       } else {
         setPlantacaoSelecionada('');
         setFarmName('Nenhuma fazenda cadastrada');
         setCulturaAtual('-');
+        setRecomendacao(null);
         localStorage.removeItem(STORAGE_KEY_SELECIONADA);
       }
     }
@@ -292,9 +318,19 @@ export const PainelUsuario: React.FC = () => {
       setFarmName(alvo.nome);
       setCulturaAtual(alvo.cultura);
       localStorage.setItem(STORAGE_KEY_SELECIONADA, alvo.nome);
-      // RECALCULA A RECOMENDAÇÃO IMEDIATAMENTE PARA A FAZENDA SELECIONADA!
-      const novaRec = calcularRecomendacao(alvo);
-      setRecomendacao(novaRec);
+      const anterior = historico.find((h) => h.fazenda === alvo.nome);
+      if (anterior) {
+        setRecomendacao({
+          decisao: anterior.decisao as any,
+          cor: anterior.cor,
+          motivo: anterior.motivo,
+          umidade: anterior.umidade || '--',
+          chuva3d: anterior.chuva3d || '--',
+          probChuva: anterior.probChuva || '--',
+        });
+      } else {
+        setRecomendacao(null);
+      }
     }
   };
 
@@ -307,14 +343,19 @@ export const PainelUsuario: React.FC = () => {
       setGerando(false);
       const novaRec = calcularRecomendacao(alvo);
       setRecomendacao(novaRec);
-      registrarHistorico(alvo.nome, novaRec.decisao, novaRec.motivo, novaRec.cor);
-    }, 500);
+      registrarHistorico(alvo.nome, novaRec);
+    }, 400);
   };
 
   const handleLogout = () => {
     UsuarioService.logout();
     navigate('/login');
   };
+
+  // Cálculo real da Economia da Fazenda com base nas recomendações 'NÃO REGAR'
+  const irrigaçõesEvitadas = historico.filter((h) => h.decisao === 'NÃO REGAR').length;
+  const aguaPoupadaLitros = irrigaçõesEvitadas * 1700;
+  const economiaEstimadaReais = Number(((aguaPoupadaLitros / 1000) * 5.41).toFixed(2));
 
   return (
     <div className="min-h-screen bg-[#0e1712] text-[#e6efe8] flex flex-col md:flex-row">
@@ -654,44 +695,57 @@ export const PainelUsuario: React.FC = () => {
             )}
 
             {/* Decisão em destaque com transição suave */}
-            <div className="pt-2">
-              <div className="flex items-center justify-between">
-                <span 
-                  className="font-heading text-4xl sm:text-5xl font-bold tracking-tight block transition-colors duration-300"
-                  style={{ color: recomendacao.cor }}
-                >
-                  {recomendacao.decisao}
-                </span>
-                <span className="text-xs text-[#9fb5a6] bg-[#0e1712] px-2.5 py-1 rounded-md border border-[#243a2d]">
-                  Fazenda: <strong className="text-white">{plantacaoSelecionada || 'Nenhuma'}</strong>
-                </span>
+            {!recomendacao ? (
+              <div className="bg-[#0e1712] border border-[#243a2d] rounded-xl p-6 text-center space-y-2">
+                <p className="text-sm font-medium text-[#9fb5a6]">
+                  Nenhuma recomendação calculada para esta fazenda ainda.
+                </p>
+                <p className="text-xs text-[#9fb5a6]/70">
+                  Clique no botão <strong className="text-white">"Recalcular"</strong> acima para consultar o balanço hídrico e satélite.
+                </p>
               </div>
-              <p className="text-sm text-[#e6efe8] mt-2 leading-relaxed">
-                {recomendacao.motivo}
-              </p>
-            </div>
+            ) : (
+              <>
+                <div className="pt-2">
+                  <div className="flex items-center justify-between">
+                    <span 
+                      className="font-heading text-4xl sm:text-5xl font-bold tracking-tight block transition-colors duration-300"
+                      style={{ color: recomendacao.cor }}
+                    >
+                      {recomendacao.decisao}
+                    </span>
+                    <span className="text-xs text-[#9fb5a6] bg-[#0e1712] px-2.5 py-1 rounded-md border border-[#243a2d]">
+                      Fazenda: <strong className="text-white">{plantacaoSelecionada || 'Nenhuma'}</strong>
+                    </span>
+                  </div>
+                  <p className="text-sm text-[#e6efe8] mt-2 leading-relaxed">
+                    {recomendacao.motivo}
+                  </p>
+                </div>
 
-            {/* Três Métricas Resumidas da Fazenda Ativa */}
-            <div className="grid grid-cols-3 gap-2.5 pt-2">
-              <div className="bg-[#0e1712] border border-[#243a2d] rounded-xl p-3">
-                <span className="font-heading text-lg sm:text-xl font-bold text-white block">
-                  {recomendacao.umidade}
-                </span>
-                <span className="text-[11px] text-[#9fb5a6]">Umidade do solo</span>
-              </div>
-              <div className="bg-[#0e1712] border border-[#243a2d] rounded-xl p-3">
-                <span className="font-heading text-lg sm:text-xl font-bold text-white block">
-                  {recomendacao.chuva3d}
-                </span>
-                <span className="text-[11px] text-[#9fb5a6]">Chuva em 3 dias</span>
-              </div>
-              <div className="bg-[#0e1712] border border-[#243a2d] rounded-xl p-3">
-                <span className="font-heading text-lg sm:text-xl font-bold text-white block">
-                  {recomendacao.probChuva}
-                </span>
-                <span className="text-[11px] text-[#9fb5a6]">Prob. máxima</span>
-              </div>
-            </div>
+                {/* Três Métricas Resumidas da Fazenda Ativa */}
+                <div className="grid grid-cols-3 gap-2.5 pt-2">
+                  <div className="bg-[#0e1712] border border-[#243a2d] rounded-xl p-3">
+                    <span className="font-heading text-lg sm:text-xl font-bold text-white block">
+                      {recomendacao.umidade}
+                    </span>
+                    <span className="text-[11px] text-[#9fb5a6]">Umidade do solo</span>
+                  </div>
+                  <div className="bg-[#0e1712] border border-[#243a2d] rounded-xl p-3">
+                    <span className="font-heading text-lg sm:text-xl font-bold text-white block">
+                      {recomendacao.chuva3d}
+                    </span>
+                    <span className="text-[11px] text-[#9fb5a6]">Chuva em 3 dias</span>
+                  </div>
+                  <div className="bg-[#0e1712] border border-[#243a2d] rounded-xl p-3">
+                    <span className="font-heading text-lg sm:text-xl font-bold text-white block">
+                      {recomendacao.probChuva}
+                    </span>
+                    <span className="text-[11px] text-[#9fb5a6]">Prob. máxima</span>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
 
           {/* Card 03 - Histórico de Recomendações */}
@@ -705,30 +759,39 @@ export const PainelUsuario: React.FC = () => {
               </h2>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr className="text-[#9fb5a6] border-b border-[#243a2d]">
-                    <th className="py-2.5 font-medium">Quando</th>
-                    <th className="py-2.5 px-2 font-medium">Fazenda</th>
-                    <th className="py-2.5 px-2 font-medium">Decisão</th>
-                    <th className="py-2.5 font-medium">Motivo</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#243a2d]">
-                  {historico.map((h) => (
-                    <tr key={h.id} className="hover:bg-[#1a2d23] transition-colors">
-                      <td className="py-3 text-[#9fb5a6] whitespace-nowrap">{h.quando}</td>
-                      <td className="py-3 px-2 font-semibold text-white whitespace-nowrap">{h.fazenda}</td>
-                      <td className="py-3 px-2 font-bold whitespace-nowrap" style={{ color: h.cor }}>
-                        {h.decisao}
-                      </td>
-                      <td className="py-3 text-[#e6efe8]">{h.motivo}</td>
+            {historico.length === 0 ? (
+              <div className="bg-[#0e1712] border border-[#243a2d] rounded-xl p-6 text-center space-y-2">
+                <p className="text-sm text-[#9fb5a6]">Nenhuma recomendação registrada ainda.</p>
+                <p className="text-xs text-[#9fb5a6]/70">
+                  Ao cadastrar uma nova fazenda ou clicar em "Recalcular", as recomendações geradas aparecerão aqui.
+                </p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="text-[#9fb5a6] border-b border-[#243a2d]">
+                      <th className="py-2.5 font-medium">Quando</th>
+                      <th className="py-2.5 px-2 font-medium">Fazenda</th>
+                      <th className="py-2.5 px-2 font-medium">Decisão</th>
+                      <th className="py-2.5 font-medium">Motivo</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y divide-[#243a2d]">
+                    {historico.map((h) => (
+                      <tr key={h.id} className="hover:bg-[#1a2d23] transition-colors">
+                        <td className="py-3 text-[#9fb5a6] whitespace-nowrap">{h.quando}</td>
+                        <td className="py-3 px-2 font-semibold text-white whitespace-nowrap">{h.fazenda}</td>
+                        <td className="py-3 px-2 font-bold whitespace-nowrap" style={{ color: h.cor }}>
+                          {h.decisao}
+                        </td>
+                        <td className="py-3 text-[#e6efe8]">{h.motivo}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
 
           {/* Card 04 - Economia da Fazenda */}
@@ -743,15 +806,21 @@ export const PainelUsuario: React.FC = () => {
             {/* 3 Métricas de Poupança */}
             <div className="grid grid-cols-3 gap-2.5">
               <div className="bg-[#0e1712] border border-[#243a2d] rounded-xl p-3">
-                <span className="font-heading text-2xl font-bold text-white block">2</span>
+                <span className="font-heading text-2xl font-bold text-white block">
+                  {irrigaçõesEvitadas}
+                </span>
                 <span className="text-[11px] text-[#9fb5a6]">Irrigações evitadas</span>
               </div>
               <div className="bg-[#0e1712] border border-[#243a2d] rounded-xl p-3">
-                <span className="font-heading text-2xl font-bold text-white block">3.400 L</span>
+                <span className="font-heading text-2xl font-bold text-white block">
+                  {aguaPoupadaLitros.toLocaleString('pt-BR')} L
+                </span>
                 <span className="text-[11px] text-[#9fb5a6]">Água poupada</span>
               </div>
               <div className="bg-[#0e1712] border border-[#243a2d] rounded-xl p-3">
-                <span className="font-heading text-2xl font-bold text-[#7cc795] block">R$ 18,40</span>
+                <span className="font-heading text-2xl font-bold text-[#7cc795] block">
+                  R$ {economiaEstimadaReais.toFixed(2).replace('.', ',')}
+                </span>
                 <span className="text-[11px] text-[#9fb5a6]">Economia estimada</span>
               </div>
             </div>
@@ -760,24 +829,40 @@ export const PainelUsuario: React.FC = () => {
             <div className="pt-2">
               <div className="flex items-end gap-3.5 h-28 pt-2">
                 <div className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end">
-                  <div className="w-full bg-[#6fa8e8] rounded-t-md transition-all duration-300" style={{ height: '30%' }} title="Semana 1: 800L"></div>
+                  <div 
+                    className="w-full bg-[#6fa8e8] rounded-t-md transition-all duration-300" 
+                    style={{ height: `${Math.min(100, Math.max(10, Math.round((aguaPoupadaLitros * 0.15) / 50)))}%` }} 
+                    title={`Semana 1: ${Math.round(aguaPoupadaLitros * 0.15)}L`}
+                  ></div>
                   <span className="text-[10px] text-[#9fb5a6]">Sem 1</span>
                 </div>
                 <div className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end">
-                  <div className="w-full bg-[#6fa8e8] rounded-t-md transition-all duration-300" style={{ height: '55%' }} title="Semana 2: 1.400L"></div>
+                  <div 
+                    className="w-full bg-[#6fa8e8] rounded-t-md transition-all duration-300" 
+                    style={{ height: `${Math.min(100, Math.max(10, Math.round((aguaPoupadaLitros * 0.25) / 50)))}%` }} 
+                    title={`Semana 2: ${Math.round(aguaPoupadaLitros * 0.25)}L`}
+                  ></div>
                   <span className="text-[10px] text-[#9fb5a6]">Sem 2</span>
                 </div>
                 <div className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end">
-                  <div className="w-full bg-[#6fa8e8] rounded-t-md transition-all duration-300" style={{ height: '40%' }} title="Semana 3: 1.050L"></div>
+                  <div 
+                    className="w-full bg-[#6fa8e8] rounded-t-md transition-all duration-300" 
+                    style={{ height: `${Math.min(100, Math.max(10, Math.round((aguaPoupadaLitros * 0.20) / 50)))}%` }} 
+                    title={`Semana 3: ${Math.round(aguaPoupadaLitros * 0.20)}L`}
+                  ></div>
                   <span className="text-[10px] text-[#9fb5a6]">Sem 3</span>
                 </div>
                 <div className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end">
-                  <div className="w-full bg-[#7cc795] rounded-t-md transition-all duration-300" style={{ height: '90%' }} title="Semana 4: 2.350L"></div>
+                  <div 
+                    className="w-full bg-[#7cc795] rounded-t-md transition-all duration-300" 
+                    style={{ height: `${Math.min(100, Math.max(15, Math.round((aguaPoupadaLitros * 0.40) / 50)))}%` }} 
+                    title={`Semana 4: ${Math.round(aguaPoupadaLitros * 0.40)}L`}
+                  ></div>
                   <span className="text-[10px] text-[#7cc795] font-semibold">Sem 4</span>
                 </div>
               </div>
               <p className="text-[11px] text-[#9fb5a6] mt-3">
-                Litros poupados por semana · dados reais medidos pelo sensor virtual e Open-Meteo
+                Litros poupados calculados com base nas recomendações "NÃO REGAR" ativas no sistema.
               </p>
             </div>
           </div>

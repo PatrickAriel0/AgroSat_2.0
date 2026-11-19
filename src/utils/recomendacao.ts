@@ -20,32 +20,10 @@ export interface RecomendacaoResultado {
  * Avalia a cultura agrícola, balanço evapotranspirativo e coordenadas da fazenda.
  */
 export function calcularRecomendacao(item: PlantacaoItem): RecomendacaoResultado {
-  if (item.nome === 'Fazenda Triste') {
-    return {
-      decisao: 'REGAR',
-      cor: '#6fa8e8',
-      motivo: 'Solo em nível crítico de esgotamento hídrico (14,2%) e sem volume de chuva previsto para os próximos 3 dias.',
-      umidade: '14,2%',
-      chuva3d: '1,0 mm',
-      probChuva: '15%',
-    };
-  }
-
-  if (item.nome === 'Token Fortnite') {
-    return {
-      decisao: 'ATENÇÃO',
-      cor: '#e0b04a',
-      motivo: 'Risco de encharcamento para o café. O volume recente acumulado com 45,0 mm de chuva prevista satura as raízes.',
-      umidade: '41,8%',
-      chuva3d: '45,0 mm',
-      probChuva: '89%',
-    };
-  }
-
-  // Gera valores agronômicos realistas e coerentes com a latitude/longitude da fazenda
+  // Gera valores agronômicos realistas e coerentes com as coordenadas geográficas da fazenda
   const seed = Math.abs(Math.sin(item.latitude * 17.13 + item.longitude * 43.17) * 100);
   
-  // Variação calculada
+  // Variação calculada dinamicamente conforme localização geográfica
   const umidadeNum = Number((21 + (seed % 18)).toFixed(1)); // Entre 21.0% e 38.9%
   const chuvaNum = Number(((seed * 2.3) % 36).toFixed(1)); // Entre 0.0 mm e 35.9 mm
   const probNum = Math.min(99, Math.max(12, Math.round(chuvaNum * 2.8 + 15)));
@@ -54,7 +32,7 @@ export function calcularRecomendacao(item: PlantacaoItem): RecomendacaoResultado
     return {
       decisao: 'NÃO REGAR',
       cor: '#7cc795',
-      motivo: `O solo da lavoura de ${item.cultura} em ${item.nome} está abastecido (${umidadeNum}% de umidade) e há chuva prevista de ${chuvaNum} mm em 3 dias. Regar agora desperdiçaria água.`,
+      motivo: `O solo da lavoura de ${item.cultura} em ${item.nome} está bem abastecido (${umidadeNum}% de umidade) e há chuva prevista de ${chuvaNum} mm em 3 dias. Regar agora desperdiçaria água.`,
       umidade: `${umidadeNum}%`,
       chuva3d: `${chuvaNum} mm`,
       probChuva: `${probNum}%`,
