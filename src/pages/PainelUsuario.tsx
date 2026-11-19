@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { 
   Satellite, 
   TrendingUp, 
@@ -16,6 +16,7 @@ import {
   PlantacaoItem, 
   RecomendacaoResultado 
 } from '../utils/recomendacao';
+import { UsuarioService } from '../services/api';
 
 const STORAGE_KEY_PLANTACOES = 'agrosat_plantacoes_usuario';
 const STORAGE_KEY_SELECIONADA = 'agrosat_fazenda_selecionada';
@@ -30,9 +31,11 @@ interface HistoricoItem {
 }
 
 export const PainelUsuario: React.FC = () => {
-  // Dados do usuário recuperados do cadastro ou default
-  const [userName, setUserName] = useState<string>('Leandro');
-  const [farmName, setFarmName] = useState<string>('Fazenda Feliz');
+  const navigate = useNavigate();
+
+  // Dados do usuário recuperados do cadastro, sessão da API ou default
+  const [userName, setUserName] = useState<string>('Produtor');
+  const [farmName, setFarmName] = useState<string>('Fazenda');
   const [culturaAtual, setCulturaAtual] = useState<string>('Soja');
 
   // Estado do formulário 01 Nova Plantação
@@ -117,7 +120,27 @@ export const PainelUsuario: React.FC = () => {
         setLimiteFazendas(Number(savedLimit) || 1);
       }
 
-      // 1. Tenta recuperar plantações já salvas de sessões anteriores
+      // 1. Carrega dados do usuário ativo da sessão ou do onboarding
+      const usuarioAtivo = UsuarioService.getUsuarioAtivo();
+      const savedProdutor = localStorage.getItem('agrosat_novo_produtor');
+      let produtorInfo: any = null;
+      if (savedProdutor) {
+        try {
+          produtorInfo = JSON.parse(savedProdutor);
+        } catch {
+          produtorInfo = null;
+        }
+      }
+
+      if (usuarioAtivo && usuarioAtivo.nome) {
+        setUserName(usuarioAtivo.nome.split(' ')[0]);
+      } else if (produtorInfo && produtorInfo.nome) {
+        setUserName(produtorInfo.nome.split(' ')[0]);
+      } else {
+        setUserName('Produtor');
+      }
+
+      // 2. Tenta recuperar plantações já salvas de sessões anteriores
       let listaInicial: PlantacaoItem[] = [];
       const salvas = localStorage.getItem(STORAGE_KEY_PLANTACOES);
 
@@ -132,32 +155,29 @@ export const PainelUsuario: React.FC = () => {
         }
       }
 
-      // 2. Se não houver lista salva ainda, verifica se veio do onboarding do produtor
-      if (listaInicial.length === 0) {
-        const savedProdutor = localStorage.getItem('agrosat_novo_produtor');
-        if (savedProdutor) {
-          const parsed = JSON.parse(savedProdutor);
-          if (parsed.nome) setUserName(parsed.nome.split(' ')[0]);
-          if (parsed.nomeFazenda) {
-            listaInicial = [
-              {
-                id: 'user-farm',
-                nome: parsed.nomeFazenda,
-                cultura: parsed.plantio || 'Soja',
-                latitude: parsed.latitude || -23.5349,
-                longitude: parsed.longitude || -46.6212,
-              }
-            ];
-          }
+      // Se o produtor acabou de se cadastrar com uma fazenda nova, insere no topo caso não exista
+      if (produtorInfo && produtorInfo.nomeFazenda) {
+        const jaExiste = listaInicial.some(
+          (f) => f.nome.toLowerCase() === produtorInfo.nomeFazenda.toLowerCase()
+        );
+        if (!jaExiste) {
+          const fazendaDoProdutor: PlantacaoItem = {
+            id: 'user-farm-' + Date.now(),
+            nome: produtorInfo.nomeFazenda,
+            cultura: produtorInfo.plantio || 'Soja',
+            latitude: produtorInfo.latitude || -23.5349,
+            longitude: produtorInfo.longitude || -46.6212,
+          };
+          listaInicial = [fazendaDoProdutor, ...listaInicial];
         }
       }
 
-      // 3. Fallback inicial padrão com as fazendas de demonstração
+      // 3. Fallback inicial padrão com as fazendas de demonstração apenas se não houver nenhuma
       if (listaInicial.length === 0) {
         listaInicial = [
-          { id: '1', nome: 'Fazenda Feliz', cultura: 'Soja', latitude: -23.5349, longitude: -46.6212 },
-          { id: '2', nome: 'Fazenda Triste', cultura: 'Milho', latitude: -22.9068, longitude: -47.0616 },
-          { id: '3', nome: 'Token Fortnite', cultura: 'Café', latitude: -21.1775, longitude: -47.8103 },
+          { id: '1', nome: 'Fazenda Santa Maria', cultura: 'Soja', latitude: -21.178, longitude: -47.811 },
+          { id: '2', nome: 'Fazenda Boa Vista', cultura: 'Milho', latitude: -21.2005, longitude: -47.7505 },
+          { id: '3', nome: 'Fazenda Esperança', cultura: 'Café', latitude: -23.305, longitude: -51.17 },
         ];
       }
 
@@ -165,9 +185,11 @@ export const PainelUsuario: React.FC = () => {
       localStorage.setItem(STORAGE_KEY_PLANTACOES, JSON.stringify(listaInicial));
       setPlantacoes(listaInicial);
 
-      // Define a fazenda selecionada (respeitando a última escolha)
+      // Define a fazenda selecionada (prioriza a fazenda do produtor se recém-cadastrada)
       const ultimaEscolhida = localStorage.getItem(STORAGE_KEY_SELECIONADA);
-      const fazendaAlvo = listaInicial.find((f) => f.nome === ultimaEscolhida) || listaInicial[0];
+      const fazendaAlvo = (produtorInfo && produtorInfo.nomeFazenda && !ultimaEscolhida)
+        ? (listaInicial.find((f) => f.nome.toLowerCase() === produtorInfo.nomeFazenda.toLowerCase()) || listaInicial[0])
+        : (listaInicial.find((f) => f.nome === ultimaEscolhida) || listaInicial[0]);
 
       if (fazendaAlvo) {
         setPlantacaoSelecionada(fazendaAlvo.nome);
@@ -289,6 +311,11 @@ export const PainelUsuario: React.FC = () => {
     }, 500);
   };
 
+  const handleLogout = () => {
+    UsuarioService.logout();
+    navigate('/login');
+  };
+
   return (
     <div className="min-h-screen bg-[#0e1712] text-[#e6efe8] flex flex-col md:flex-row">
       {/* Sidebar Lateral */}
@@ -372,13 +399,14 @@ export const PainelUsuario: React.FC = () => {
 
         {/* Rodapé do Menu */}
         <div className="pt-6 border-t border-[#243a2d] mt-6">
-          <Link
-            to="/login"
-            className="flex items-center gap-2 text-xs text-[#9fb5a6] hover:text-rose-400 transition-colors"
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="flex items-center gap-2 text-xs text-[#9fb5a6] hover:text-rose-400 transition-colors w-full text-left"
           >
             <LogOut className="w-4 h-4" />
             <span>Encerrar sessão</span>
-          </Link>
+          </button>
         </div>
       </aside>
 

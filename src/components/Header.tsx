@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Menu, X, Satellite } from 'lucide-react';
+import { UsuarioService } from '../services/api';
 
 export const Header: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
+  const usuarioAtivo = UsuarioService.getUsuarioAtivo();
 
   const navLinks = [
     { name: 'Home', path: '/' },
@@ -58,18 +60,30 @@ export const Header: React.FC = () => {
           })}
           
           <div className="flex items-center gap-3 pl-2 border-l border-brand-border">
-            <Link
-              to="/login"
-              className="text-sm font-medium text-brand-text-body hover:text-white transition-colors"
-            >
-              Entrar
-            </Link>
-            <Link
-              to="/cadastro"
-              className="bg-brand-primary hover:bg-brand-primary-hover text-black font-semibold text-sm px-5 py-2 rounded-full transition-all duration-200 shadow-[0_2px_12px_rgba(74,222,128,0.3)] hover:shadow-[0_4px_20px_rgba(74,222,128,0.45)]"
-            >
-              Cadastrar
-            </Link>
+            {usuarioAtivo ? (
+              <Link
+                to="/painel-usuario"
+                className="text-xs bg-[#1d3a2a] text-[#7cc795] border border-[#7cc795]/30 px-3 py-1.5 rounded-full hover:bg-[#254d37] transition-colors font-medium flex items-center gap-1.5"
+              >
+                <span className="w-2 h-2 rounded-full bg-[#7cc795] animate-pulse"></span>
+                <span>Olá, {usuarioAtivo.nome.split(' ')[0]}</span>
+              </Link>
+            ) : (
+              <>
+                <Link
+                  to="/login"
+                  className="text-sm font-medium text-brand-text-body hover:text-white transition-colors"
+                >
+                  Entrar
+                </Link>
+                <Link
+                  to="/cadastro"
+                  className="bg-brand-primary hover:bg-brand-primary-hover text-black font-semibold text-sm px-5 py-2 rounded-full transition-all duration-200 shadow-[0_2px_12px_rgba(74,222,128,0.3)] hover:shadow-[0_4px_20px_rgba(74,222,128,0.45)]"
+                >
+                  Cadastrar
+                </Link>
+              </>
+            )}
           </div>
         </nav>
 
@@ -103,21 +117,33 @@ export const Header: React.FC = () => {
               </Link>
             );
           })}
-          <div className="pt-2 grid grid-cols-2 gap-2">
-            <Link
-              to="/login"
-              onClick={() => setMobileMenuOpen(false)}
-              className="block w-full text-center border border-brand-border text-white font-semibold text-sm py-2.5 rounded-full hover:bg-emerald-950/40 transition-all"
-            >
-              Entrar
-            </Link>
-            <Link
-              to="/cadastro"
-              onClick={() => setMobileMenuOpen(false)}
-              className="block w-full text-center bg-brand-primary hover:bg-brand-primary-hover text-black font-semibold text-sm py-2.5 rounded-full transition-all"
-            >
-              Cadastrar
-            </Link>
+          <div className="pt-2">
+            {usuarioAtivo ? (
+              <Link
+                to="/painel-usuario"
+                onClick={() => setMobileMenuOpen(false)}
+                className="block w-full text-center bg-[#1d3a2a] text-[#7cc795] border border-[#7cc795]/30 font-semibold text-sm py-2.5 rounded-full"
+              >
+                Painel ({usuarioAtivo.nome.split(' ')[0]})
+              </Link>
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                <Link
+                  to="/login"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="block w-full text-center border border-brand-border text-white font-semibold text-sm py-2.5 rounded-full hover:bg-emerald-950/40 transition-all"
+                >
+                  Entrar
+                </Link>
+                <Link
+                  to="/cadastro"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="block w-full text-center bg-brand-primary hover:bg-brand-primary-hover text-black font-semibold text-sm py-2.5 rounded-full transition-all"
+                >
+                  Cadastrar
+                </Link>
+              </div>
+            )}
           </div>
         </div>
       )}
