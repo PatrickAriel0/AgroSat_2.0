@@ -44,6 +44,7 @@ function saveLocalUsuariosDb(usuarios: Usuario[]) {
 const FAZENDAS_INICIAIS: Fazenda[] = [
   {
     id: 1,
+    usuarioId: 1,
     nome: 'Fazenda Santa Maria',
     municipio: 'Ribeirão Preto',
     uf: 'SP',
@@ -66,6 +67,7 @@ const FAZENDAS_INICIAIS: Fazenda[] = [
   },
   {
     id: 2,
+    usuarioId: 1,
     nome: 'Fazenda Boa Vista',
     municipio: 'Franca',
     uf: 'SP',
@@ -88,7 +90,8 @@ const FAZENDAS_INICIAIS: Fazenda[] = [
   },
   {
     id: 3,
-    nome: 'Fazenda Esperança',
+    usuarioId: 2,
+    nome: 'Fazenda Esperanca',
     municipio: 'Londrina',
     uf: 'PR',
     latitude: -23.305,
@@ -110,33 +113,35 @@ const FAZENDAS_INICIAIS: Fazenda[] = [
   },
   {
     id: 4,
-    nome: 'Fazenda São Francisco',
-    municipio: 'Uberaba',
-    uf: 'MG',
-    latitude: -19.748,
-    longitude: -47.931,
+    usuarioId: 2,
+    nome: 'Fazenda Primavera',
+    municipio: 'Londrina',
+    uf: 'PR',
+    latitude: -23.4005,
+    longitude: -51.2505,
     autorizaOpenMeteo: true,
-    sistemaIrrigacao: 'Pivô Central Automatizado',
-    tipoSolo: 'Latossolo Vermelho-Amarelo',
-    observacoes: 'Cana-de-açúcar sustentável com monitoramento via satélite',
+    sistemaIrrigacao: 'Pivô Central',
+    tipoSolo: 'Latossolo Vermelho-Escuro',
+    observacoes: 'Grãos de alta performance com gestão hídrica CitizenTech',
     talhoes: [
       {
         id: 401,
-        nome: 'Talhão 01',
-        cultura: 'Cana-de-açúcar',
-        areaHa: 80.0,
-        limiteUmidade: 30,
-        leituras: [{ id: 4, dataHora: '19/11/2026, 08:00:00', valorUmidade: 29 }]
+        nome: 'Pivô 04',
+        cultura: 'Soja',
+        areaHa: 50.0,
+        limiteUmidade: 34,
+        leituras: [{ id: 4, dataHora: '19/11/2026, 07:30:00', valorUmidade: 31 }]
       }
     ]
   },
   {
     id: 5,
-    nome: 'Fazenda Alvorada',
-    municipio: 'Rio Verde',
-    uf: 'GO',
-    latitude: -17.792,
-    longitude: -50.919,
+    usuarioId: 3,
+    nome: 'Fazenda Cerrado',
+    municipio: 'Uberlândia',
+    uf: 'MG',
+    latitude: -18.919,
+    longitude: -48.278,
     autorizaOpenMeteo: true,
     sistemaIrrigacao: 'Gotejamento de precisão',
     tipoSolo: 'Latossolo Vermelho',
@@ -154,11 +159,12 @@ const FAZENDAS_INICIAIS: Fazenda[] = [
   },
   {
     id: 6,
-    nome: 'Fazenda Terra Nova',
-    municipio: 'Cascavel',
-    uf: 'PR',
-    latitude: -24.957,
-    longitude: -53.459,
+    usuarioId: 4,
+    nome: 'Fazenda Horizonte',
+    municipio: 'Uberlândia',
+    uf: 'MG',
+    latitude: -19.0205,
+    longitude: -48.3505,
     autorizaOpenMeteo: true,
     sistemaIrrigacao: 'Aspersão em faixa',
     tipoSolo: 'Latossolo Bruno',
@@ -176,42 +182,44 @@ const FAZENDAS_INICIAIS: Fazenda[] = [
   },
   {
     id: 7,
-    nome: 'Fazenda Primavera',
-    municipio: 'Sorriso',
-    uf: 'MT',
-    latitude: -12.542,
-    longitude: -55.721,
+    usuarioId: 5,
+    nome: 'Fazenda Cafezal',
+    municipio: 'Ribeirão Preto',
+    uf: 'SP',
+    latitude: -21.0005,
+    longitude: -47.9005,
     autorizaOpenMeteo: true,
-    sistemaIrrigacao: 'Pivô Central',
-    tipoSolo: 'Latossolo Vermelho-Escuro',
-    observacoes: 'Grãos de alta performance com gestão hídrica CitizenTech',
+    sistemaIrrigacao: 'Gotejamento de precisão',
+    tipoSolo: 'Latossolo Vermelho',
+    observacoes: 'Cultivo especializado de café arábica',
     talhoes: [
       {
         id: 701,
-        nome: 'Pivô 04',
-        cultura: 'Soja',
-        areaHa: 150.0,
-        limiteUmidade: 34,
-        leituras: [{ id: 7, dataHora: '19/11/2026, 07:30:00', valorUmidade: 31 }]
+        nome: 'Talhão Café 01',
+        cultura: 'Café',
+        areaHa: 40.0,
+        limiteUmidade: 35,
+        leituras: [{ id: 7, dataHora: '19/11/2026, 08:15:00', valorUmidade: 30 }]
       }
     ]
   },
   {
     id: 8,
-    nome: 'Fazenda Bela Vista',
-    municipio: 'Barreiras',
-    uf: 'BA',
-    latitude: -12.152,
-    longitude: -44.996,
+    usuarioId: 6,
+    nome: 'Fazenda Tres Irmaos',
+    municipio: 'Londrina',
+    uf: 'PR',
+    latitude: -23.2005,
+    longitude: -51.3005,
     autorizaOpenMeteo: true,
     sistemaIrrigacao: 'Gotejamento automatizado',
     tipoSolo: 'Neossolo Quartzarênico',
-    observacoes: 'Cultivo de algodão e grãos no Oeste Baiano',
+    observacoes: 'Cultivo de algodão e grãos',
     talhoes: [
       {
         id: 801,
         nome: 'Gleba Oeste',
-        cultura: 'Algodão',
+        cultura: 'Milho',
         areaHa: 75.0,
         limiteUmidade: 30,
         leituras: [{ id: 8, dataHora: '19/11/2026, 08:45:00', valorUmidade: 27 }]
@@ -308,6 +316,13 @@ export const FazendaService = {
       // Fallback transparente
       return getLocalDb();
     }
+  },
+
+  async listarPorUsuario(usuarioId?: number | string, isAdmin?: boolean): Promise<Fazenda[]> {
+    const todas = await this.listar();
+    if (isAdmin) return todas;
+    if (usuarioId === undefined || usuarioId === null) return todas;
+    return todas.filter(f => Number(f.usuarioId) === Number(usuarioId));
   },
 
   async buscarPorId(id: number | string): Promise<Fazenda | null> {

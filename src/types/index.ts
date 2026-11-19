@@ -16,6 +16,7 @@ export interface Talhao {
 
 export interface Fazenda {
   id: number | string;
+  usuarioId?: number | string;
   nome: string;
   municipio: string;
   uf: string;

@@ -16,10 +16,7 @@ import {
   PlantacaoItem, 
   RecomendacaoResultado 
 } from '../utils/recomendacao';
-import { UsuarioService } from '../services/api';
-
-const STORAGE_KEY_PLANTACOES = 'agrosat_plantacoes_usuario';
-const STORAGE_KEY_SELECIONADA = 'agrosat_fazenda_selecionada';
+import { UsuarioService, FazendaService } from '../services/api';
 
 interface HistoricoItem {
   id: string;
@@ -62,13 +59,30 @@ export const PainelUsuario: React.FC = () => {
   // Histórico de recomendações (inicia vazio para novos usuários)
   const [historico, setHistorico] = useState<HistoricoItem[]>([]);
 
+  // Chaves de armazenamento isoladas estritamente por usuário
+  const getChavePlantacoes = () => {
+    const usuarioAtivo = UsuarioService.getUsuarioAtivo();
+    if (usuarioAtivo?.id) return `agrosat_plantacoes_uid_${usuarioAtivo.id}`;
+    if (usuarioAtivo?.email) return `agrosat_plantacoes_${usuarioAtivo.email.trim().toLowerCase()}`;
+    return 'agrosat_plantacoes_anonimo';
+  };
+
+  const getChaveSelecionada = () => {
+    const usuarioAtivo = UsuarioService.getUsuarioAtivo();
+    if (usuarioAtivo?.id) return `agrosat_selecionada_uid_${usuarioAtivo.id}`;
+    if (usuarioAtivo?.email) return `agrosat_selecionada_${usuarioAtivo.email.trim().toLowerCase()}`;
+    return 'agrosat_selecionada_anonimo';
+  };
+
   const getHistoricoStorageKey = () => {
     const usuarioAtivo = UsuarioService.getUsuarioAtivo();
+    if (usuarioAtivo?.id) return `agrosat_historico_uid_${usuarioAtivo.id}`;
     if (usuarioAtivo?.email) return `agrosat_historico_${usuarioAtivo.email.trim().toLowerCase()}`;
     const savedProdutor = localStorage.getItem('agrosat_novo_produtor');
     if (savedProdutor) {
       try {
         const p = JSON.parse(savedProdutor);
+        if (p.id) return `agrosat_historico_uid_${p.id}`;
         if (p.email) return `agrosat_historico_${p.email.trim().toLowerCase()}`;
       } catch {}
     }
@@ -100,122 +114,160 @@ export const PainelUsuario: React.FC = () => {
   };
 
   useEffect(() => {
-    try {
-      const savedPlan = localStorage.getItem('agrosat_plano_escolhido');
-      const savedLimit = localStorage.getItem('agrosat_limite_fazendas');
-      if (savedPlan === 'mensal') {
-        setPlanoAtual('Plano Mensal (até 3 fazendas)');
-        setLimiteFazendas(3);
-      } else if (savedPlan === 'anual') {
-        setPlanoAtual('Plano Anual (até 10 fazendas)');
-        setLimiteFazendas(10);
-      } else {
-        setPlanoAtual('Teste Grátis (1 fazenda)');
-        setLimiteFazendas(Number(savedLimit) || 1);
-      }
+    let cancelado = false;
 
-      // 1. Carrega dados do usuário ativo da sessão ou do onboarding
-      const usuarioAtivo = UsuarioService.getUsuarioAtivo();
-      const savedProdutor = localStorage.getItem('agrosat_novo_produtor');
-      let produtorInfo: any = null;
-      if (savedProdutor) {
-        try {
-          produtorInfo = JSON.parse(savedProdutor);
-        } catch {
-          produtorInfo = null;
+    async function inicializarPainel() {
+      try {
+        const savedPlan = localStorage.getItem('agrosat_plano_escolhido');
+        const savedLimit = localStorage.getItem('agrosat_limite_fazendas');
+        if (savedPlan === 'mensal') {
+          setPlanoAtual('Plano Mensal (até 3 fazendas)');
+          setLimiteFazendas(3);
+        } else if (savedPlan === 'anual') {
+          setPlanoAtual('Plano Anual (até 10 fazendas)');
+          setLimiteFazendas(10);
+        } else {
+          setPlanoAtual('Teste Grátis (1 fazenda)');
+          setLimiteFazendas(Number(savedLimit) || 1);
         }
-      }
 
-      if (usuarioAtivo && usuarioAtivo.nome) {
-        setUserName(usuarioAtivo.nome.split(' ')[0]);
-      } else if (produtorInfo && produtorInfo.nome) {
-        setUserName(produtorInfo.nome.split(' ')[0]);
-      } else {
-        setUserName('Produtor');
-      }
-
-      // 2. Tenta recuperar plantações já salvas de sessões anteriores
-      let listaInicial: PlantacaoItem[] = [];
-      const salvas = localStorage.getItem(STORAGE_KEY_PLANTACOES);
-
-      if (salvas) {
-        try {
-          const parsed = JSON.parse(salvas);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            listaInicial = parsed;
+        // 1. Carrega dados do usuário ativo da sessão
+        const usuarioAtivo = UsuarioService.getUsuarioAtivo();
+        const savedProdutor = localStorage.getItem('agrosat_novo_produtor');
+        let produtorInfo: any = null;
+        if (savedProdutor) {
+          try {
+            produtorInfo = JSON.parse(savedProdutor);
+          } catch {
+            produtorInfo = null;
           }
-        } catch {
-          listaInicial = [];
         }
-      }
 
-      // Se o produtor acabou de se cadastrar com uma fazenda nova, insere no topo caso não exista
-      if (produtorInfo && produtorInfo.nomeFazenda) {
-        const jaExiste = listaInicial.some(
-          (f) => f.nome.toLowerCase() === produtorInfo.nomeFazenda.toLowerCase()
-        );
-        if (!jaExiste) {
-          const fazendaDoProdutor: PlantacaoItem = {
-            id: 'user-farm-' + Date.now(),
-            nome: produtorInfo.nomeFazenda,
-            cultura: produtorInfo.plantio || 'Soja',
-            latitude: produtorInfo.latitude || -23.5349,
-            longitude: produtorInfo.longitude || -46.6212,
-          };
-          listaInicial = [fazendaDoProdutor, ...listaInicial];
+        if (usuarioAtivo && usuarioAtivo.nome) {
+          setUserName(usuarioAtivo.nome.split(' ')[0]);
+        } else if (produtorInfo && produtorInfo.nome) {
+          setUserName(produtorInfo.nome.split(' ')[0]);
+        } else {
+          setUserName('Produtor');
         }
-      }
 
-      // Carrega histórico existente do usuário ativo
-      const storageKey = getHistoricoStorageKey();
-      const savedH = localStorage.getItem(storageKey);
-      if (savedH) {
-        try {
-          const parsedH = JSON.parse(savedH);
-          if (Array.isArray(parsedH) && parsedH.length > 0) {
-            setHistorico(parsedH);
-            const ultima = parsedH[0];
-            setRecomendacao({
-              decisao: ultima.decisao as any,
-              cor: ultima.cor,
-              motivo: ultima.motivo,
-              umidade: ultima.umidade || '--',
-              chuva3d: ultima.chuva3d || '--',
-              probChuva: ultima.probChuva || '--',
-            });
+        const isAdmin = usuarioAtivo?.tipo === 'ADMIN';
+        const chavePlantacoes = getChavePlantacoes();
+        const chaveSelecionada = getChaveSelecionada();
+
+        // 2. Tenta recuperar do storage isolado deste usuário específico
+        let listaUsuario: PlantacaoItem[] = [];
+        const salvas = localStorage.getItem(chavePlantacoes);
+        if (salvas) {
+          try {
+            const parsed = JSON.parse(salvas);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              listaUsuario = parsed;
+            }
+          } catch {
+            listaUsuario = [];
           }
-        } catch {}
+        }
+
+        // 3. Se o storage deste usuário ainda não tem fazendas, busca da API Java filtrado pelo usuarioId
+        if (listaUsuario.length === 0) {
+          try {
+            const fazendasApi = await FazendaService.listarPorUsuario(usuarioAtivo?.id, isAdmin);
+            if (fazendasApi && fazendasApi.length > 0) {
+              listaUsuario = fazendasApi.map((f) => ({
+                id: String(f.id),
+                nome: f.nome,
+                cultura: (f.talhoes && f.talhoes.length > 0 && f.talhoes[0].cultura) ? f.talhoes[0].cultura : 'Soja',
+                latitude: typeof f.latitude === 'number' ? f.latitude : -21.178,
+                longitude: typeof f.longitude === 'number' ? f.longitude : -47.811,
+              }));
+            }
+          } catch {
+            // tolera
+          }
+        }
+
+        // 4. Se o produtor acabou de se cadastrar com uma fazenda nova, insere no topo caso não exista
+        if (produtorInfo && produtorInfo.nomeFazenda && (!usuarioAtivo || String(produtorInfo.id) === String(usuarioAtivo.id))) {
+          const jaExiste = listaUsuario.some(
+            (f) => f.nome.toLowerCase() === produtorInfo.nomeFazenda.toLowerCase()
+          );
+          if (!jaExiste) {
+            const fazendaDoProdutor: PlantacaoItem = {
+              id: 'user-farm-' + Date.now(),
+              nome: produtorInfo.nomeFazenda,
+              cultura: produtorInfo.plantio || 'Soja',
+              latitude: produtorInfo.latitude || -23.5349,
+              longitude: produtorInfo.longitude || -46.6212,
+            };
+            listaUsuario = [fazendaDoProdutor, ...listaUsuario];
+            // Sincroniza em segundo plano com a API Java
+            FazendaService.cadastrar({
+              nome: fazendaDoProdutor.nome,
+              municipio: 'Interior',
+              uf: 'SP',
+              latitude: fazendaDoProdutor.latitude,
+              longitude: fazendaDoProdutor.longitude,
+              talhoes: [{ id: Date.now(), nome: 'Talhão Principal', cultura: fazendaDoProdutor.cultura, areaHa: 10, limiteUmidade: 35, leituras: [] }]
+            }).catch(() => {});
+          }
+        }
+
+        if (cancelado) return;
+
+        // Salva estritamente na chave do usuário ativo
+        localStorage.setItem(chavePlantacoes, JSON.stringify(listaUsuario));
+        setPlantacoes(listaUsuario);
+
+        // Carrega histórico existente do usuário ativo
+        const storageKey = getHistoricoStorageKey();
+        const savedH = localStorage.getItem(storageKey);
+        if (savedH) {
+          try {
+            const parsedH = JSON.parse(savedH);
+            if (Array.isArray(parsedH) && parsedH.length > 0) {
+              setHistorico(parsedH);
+              const ultima = parsedH[0];
+              setRecomendacao({
+                decisao: ultima.decisao as any,
+                cor: ultima.cor,
+                motivo: ultima.motivo,
+                umidade: ultima.umidade || '--',
+                chuva3d: ultima.chuva3d || '--',
+                probChuva: ultima.probChuva || '--',
+              });
+            }
+          } catch {}
+        }
+
+        // Define a fazenda selecionada (prioriza a fazenda do produtor se recém-cadastrada)
+        if (listaUsuario.length > 0) {
+          const ultimaEscolhida = localStorage.getItem(chaveSelecionada);
+          const fazendaAlvo = (produtorInfo && produtorInfo.nomeFazenda && !ultimaEscolhida)
+            ? (listaUsuario.find((f) => f.nome.toLowerCase() === produtorInfo.nomeFazenda.toLowerCase()) || listaUsuario[0])
+            : (listaUsuario.find((f) => f.nome === ultimaEscolhida) || listaUsuario[0]);
+
+          if (fazendaAlvo) {
+            setPlantacaoSelecionada(fazendaAlvo.nome);
+            setFarmName(fazendaAlvo.nome);
+            setCulturaAtual(fazendaAlvo.cultura);
+            setNovaLat(fazendaAlvo.latitude.toFixed(4));
+            setNovaLng(fazendaAlvo.longitude.toFixed(4));
+            localStorage.setItem(chaveSelecionada, fazendaAlvo.nome);
+          }
+        } else {
+          setPlantacaoSelecionada('');
+          setFarmName('Nenhuma fazenda cadastrada');
+          setCulturaAtual('-');
+          setRecomendacao(null);
+        }
+      } catch {
+        // ignore
       }
-
-      // 3. Fallback inicial padrão com as fazendas de demonstração apenas se não houver nenhuma
-      if (listaInicial.length === 0) {
-        listaInicial = [
-          { id: '1', nome: 'Fazenda Santa Maria', cultura: 'Soja', latitude: -21.178, longitude: -47.811 },
-          { id: '2', nome: 'Fazenda Boa Vista', cultura: 'Milho', latitude: -21.2005, longitude: -47.7505 },
-          { id: '3', nome: 'Fazenda Esperança', cultura: 'Café', latitude: -23.305, longitude: -51.17 },
-        ];
-      }
-
-      // Salva no localStorage para garantir persistência contínua no Vercel
-      localStorage.setItem(STORAGE_KEY_PLANTACOES, JSON.stringify(listaInicial));
-      setPlantacoes(listaInicial);
-
-      // Define a fazenda selecionada (prioriza a fazenda do produtor se recém-cadastrada)
-      const ultimaEscolhida = localStorage.getItem(STORAGE_KEY_SELECIONADA);
-      const fazendaAlvo = (produtorInfo && produtorInfo.nomeFazenda && !ultimaEscolhida)
-        ? (listaInicial.find((f) => f.nome.toLowerCase() === produtorInfo.nomeFazenda.toLowerCase()) || listaInicial[0])
-        : (listaInicial.find((f) => f.nome === ultimaEscolhida) || listaInicial[0]);
-
-      if (fazendaAlvo) {
-        setPlantacaoSelecionada(fazendaAlvo.nome);
-        setFarmName(fazendaAlvo.nome);
-        setCulturaAtual(fazendaAlvo.cultura);
-        setNovaLat(fazendaAlvo.latitude.toFixed(4));
-        setNovaLng(fazendaAlvo.longitude.toFixed(4));
-      }
-    } catch {
-      // ignore
     }
+
+    inicializarPainel();
+    return () => { cancelado = true; };
   }, []);
 
   const handleSalvarPlantacao = (e: React.FormEvent) => {
@@ -238,19 +290,40 @@ export const PainelUsuario: React.FC = () => {
       longitude: parseFloat(novaLng) || -46.6333,
     };
 
+    const chavePlantacoes = getChavePlantacoes();
+    const chaveSelecionada = getChaveSelecionada();
     const novaLista = [nova, ...plantacoes];
     setPlantacoes(novaLista);
-    localStorage.setItem(STORAGE_KEY_PLANTACOES, JSON.stringify(novaLista));
+    localStorage.setItem(chavePlantacoes, JSON.stringify(novaLista));
 
     // Seleciona e gera recomendação imediatamente para a nova fazenda
     setPlantacaoSelecionada(nova.nome);
     setFarmName(nova.nome);
     setCulturaAtual(nova.cultura);
-    localStorage.setItem(STORAGE_KEY_SELECIONADA, nova.nome);
+    localStorage.setItem(chaveSelecionada, nova.nome);
 
     const novaRec = calcularRecomendacao(nova);
     setRecomendacao(novaRec);
     registrarHistorico(nova.nome, novaRec);
+
+    // Envia POST /fazendas para a API REST Java
+    FazendaService.cadastrar({
+      nome: nova.nome,
+      municipio: 'Interior',
+      uf: 'SP',
+      latitude: nova.latitude,
+      longitude: nova.longitude,
+      talhoes: [
+        {
+          id: Date.now() + 1,
+          nome: 'Talhão Principal',
+          cultura: nova.cultura,
+          areaHa: 10,
+          limiteUmidade: 35,
+          leituras: []
+        }
+      ]
+    }).catch(() => {});
 
     setSalvandoFeedback(`Plantação "${novoNome}" cadastrada e salva com sucesso! (${novaLista.length}/${limiteFazendas} utilizadas)`);
     setNovoNome('');
@@ -262,9 +335,14 @@ export const PainelUsuario: React.FC = () => {
       return;
     }
 
+    const chavePlantacoes = getChavePlantacoes();
+    const chaveSelecionada = getChaveSelecionada();
     const novaLista = plantacoes.filter((p) => p.id !== id);
     setPlantacoes(novaLista);
-    localStorage.setItem(STORAGE_KEY_PLANTACOES, JSON.stringify(novaLista));
+    localStorage.setItem(chavePlantacoes, JSON.stringify(novaLista));
+
+    // Remove também da API Java se aplicável
+    FazendaService.remover(id).catch(() => {});
 
     if (plantacaoSelecionada === nome) {
       if (novaLista.length > 0) {
@@ -285,13 +363,13 @@ export const PainelUsuario: React.FC = () => {
         } else {
           setRecomendacao(null);
         }
-        localStorage.setItem(STORAGE_KEY_SELECIONADA, primeira.nome);
+        localStorage.setItem(chaveSelecionada, primeira.nome);
       } else {
         setPlantacaoSelecionada('');
         setFarmName('Nenhuma fazenda cadastrada');
         setCulturaAtual('-');
         setRecomendacao(null);
-        localStorage.removeItem(STORAGE_KEY_SELECIONADA);
+        localStorage.removeItem(chaveSelecionada);
       }
     }
 
@@ -317,7 +395,8 @@ export const PainelUsuario: React.FC = () => {
     if (alvo) {
       setFarmName(alvo.nome);
       setCulturaAtual(alvo.cultura);
-      localStorage.setItem(STORAGE_KEY_SELECIONADA, alvo.nome);
+      const chaveSelecionada = getChaveSelecionada();
+      localStorage.setItem(chaveSelecionada, alvo.nome);
       const anterior = historico.find((h) => h.fazenda === alvo.nome);
       if (anterior) {
         setRecomendacao({
