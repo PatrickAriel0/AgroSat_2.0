@@ -2,8 +2,16 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Satellite, CloudRain, Droplets } from 'lucide-react';
 import { DecisionEngine } from '../components/DecisionEngine';
+import { UsuarioService } from '../services/api';
 
 export const Home: React.FC = () => {
+  const usuarioAtivo = UsuarioService.getUsuarioAtivo();
+  const destinoPainel = usuarioAtivo
+    ? usuarioAtivo.tipo === 'ADMIN'
+      ? '/admin-cooperativa'
+      : '/painel-usuario'
+    : '/login';
+
   return (
     <div className="space-y-24 pb-16">
       {/* Hero Section */}
@@ -28,10 +36,10 @@ export const Home: React.FC = () => {
 
               <div className="flex flex-wrap items-center gap-4 pt-2">
                 <Link
-                  to="/painel-usuario"
+                  to={destinoPainel}
                   className="bg-brand-primary hover:bg-brand-primary-hover text-black font-semibold px-8 py-3.5 rounded-full transition-all duration-200 flex items-center gap-2 shadow-[0_4px_20px_rgba(74,222,128,0.35)] hover:scale-[1.02]"
                 >
-                  Ver Painel Interativo <ArrowRight className="w-4 h-4" />
+                  {usuarioAtivo ? 'Acessar Meu Painel' : 'Entrar no Painel'} <ArrowRight className="w-4 h-4" />
                 </Link>
                 <Link
                   to="/solucao"
@@ -183,13 +191,13 @@ export const Home: React.FC = () => {
           </p>
           <div className="flex flex-wrap items-center justify-center gap-4">
             <Link
-              to="/painel-usuario"
+              to={destinoPainel}
               className="bg-brand-primary hover:bg-brand-primary-hover text-black font-semibold px-8 py-3.5 rounded-full transition-all shadow-[0_2px_15px_rgba(74,222,128,0.3)]"
             >
-              Acessar Painel AgroSat
+              {usuarioAtivo ? 'Acessar Painel AgroSat' : 'Entrar no AgroSat'}
             </Link>
             <Link
-              to="/painel/nova-fazenda"
+              to="/cadastro"
               className="border border-white/20 hover:border-white text-white px-7 py-3.5 rounded-full transition-all"
             >
               Cadastrar Nova Propriedade

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Satellite, Check, ArrowRight, ShieldCheck, ArrowLeft } from 'lucide-react';
+import { UsuarioService } from '../services/api';
 
 export const Planos: React.FC = () => {
   const navigate = useNavigate();
@@ -67,13 +68,13 @@ export const Planos: React.FC = () => {
   const handleEscolher = (planoId: string) => {
     setSelecionado(planoId);
     
-    // Define a capacidade de fazendas com base no plano escolhido
+    // Define a capacidade de fazendas isolada para o usuário ativo com base no plano escolhido
     let limite = 1;
     if (planoId === 'mensal') limite = 3;
     if (planoId === 'anual') limite = 10;
 
-    localStorage.setItem('agrosat_plano_escolhido', planoId);
-    localStorage.setItem('agrosat_limite_fazendas', String(limite));
+    localStorage.setItem(UsuarioService.getChavePlano(), planoId);
+    localStorage.setItem(UsuarioService.getChaveLimiteFazendas(), String(limite));
 
     navigate('/painel-usuario');
   };

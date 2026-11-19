@@ -59,35 +59,10 @@ export const PainelUsuario: React.FC = () => {
   // Histórico de recomendações (inicia vazio para novos usuários)
   const [historico, setHistorico] = useState<HistoricoItem[]>([]);
 
-  // Chaves de armazenamento isoladas estritamente por usuário
-  const getChavePlantacoes = () => {
-    const usuarioAtivo = UsuarioService.getUsuarioAtivo();
-    if (usuarioAtivo?.id) return `agrosat_plantacoes_uid_${usuarioAtivo.id}`;
-    if (usuarioAtivo?.email) return `agrosat_plantacoes_${usuarioAtivo.email.trim().toLowerCase()}`;
-    return 'agrosat_plantacoes_anonimo';
-  };
-
-  const getChaveSelecionada = () => {
-    const usuarioAtivo = UsuarioService.getUsuarioAtivo();
-    if (usuarioAtivo?.id) return `agrosat_selecionada_uid_${usuarioAtivo.id}`;
-    if (usuarioAtivo?.email) return `agrosat_selecionada_${usuarioAtivo.email.trim().toLowerCase()}`;
-    return 'agrosat_selecionada_anonimo';
-  };
-
-  const getHistoricoStorageKey = () => {
-    const usuarioAtivo = UsuarioService.getUsuarioAtivo();
-    if (usuarioAtivo?.id) return `agrosat_historico_uid_${usuarioAtivo.id}`;
-    if (usuarioAtivo?.email) return `agrosat_historico_${usuarioAtivo.email.trim().toLowerCase()}`;
-    const savedProdutor = localStorage.getItem('agrosat_novo_produtor');
-    if (savedProdutor) {
-      try {
-        const p = JSON.parse(savedProdutor);
-        if (p.id) return `agrosat_historico_uid_${p.id}`;
-        if (p.email) return `agrosat_historico_${p.email.trim().toLowerCase()}`;
-      } catch {}
-    }
-    return 'agrosat_historico_anonimo';
-  };
+  // Chaves de armazenamento isoladas estritamente por usuário via UsuarioService
+  const getChavePlantacoes = () => UsuarioService.getChavePlantacoes();
+  const getChaveSelecionada = () => UsuarioService.getChaveSelecionada();
+  const getHistoricoStorageKey = () => UsuarioService.getChaveHistorico();
 
   const registrarHistorico = (fazendaNome: string, rec: RecomendacaoResultado) => {
     const agora = new Date();
@@ -118,21 +93,13 @@ export const PainelUsuario: React.FC = () => {
 
     async function inicializarPainel() {
       try {
-        const savedPlan = localStorage.getItem('agrosat_plano_escolhido');
-        const savedLimit = localStorage.getItem('agrosat_limite_fazendas');
-        if (savedPlan === 'mensal') {
-          setPlanoAtual('Plano Mensal (até 3 fazendas)');
-          setLimiteFazendas(3);
-        } else if (savedPlan === 'anual') {
-          setPlanoAtual('Plano Anual (até 10 fazendas)');
-          setLimiteFazendas(10);
-        } else {
-          setPlanoAtual('Teste Grátis (1 fazenda)');
-          setLimiteFazendas(Number(savedLimit) || 1);
-        }
-
         // 1. Carrega dados do usuário ativo da sessão
         const usuarioAtivo = UsuarioService.getUsuarioAtivo();
+        if (!usuarioAtivo) {
+          navigate('/login');
+          return;
+        }
+
         const savedProdutor = localStorage.getItem('agrosat_novo_produtor');
         let produtorInfo: any = null;
         if (savedProdutor) {
@@ -143,15 +110,9 @@ export const PainelUsuario: React.FC = () => {
           }
         }
 
-        if (usuarioAtivo && usuarioAtivo.nome) {
-          setUserName(usuarioAtivo.nome.split(' ')[0]);
-        } else if (produtorInfo && produtorInfo.nome) {
-          setUserName(produtorInfo.nome.split(' ')[0]);
-        } else {
-          setUserName('Produtor');
-        }
+        setUserName(usuarioAtivo.nome ? usuarioAtivo.nome.split(' ')[0] : 'Produtor');
 
-        const isAdmin = usuarioAtivo?.tipo === 'ADMIN';
+        const isAdmin = usuarioAtivo.tipo === 'ADMIN';
         const chavePlantacoes = getChavePlantacoes();
         const chaveSelecionada = getChaveSelecionada();
 
@@ -172,7 +133,7 @@ export const PainelUsuario: React.FC = () => {
         // 3. Se o storage deste usuário ainda não tem fazendas, busca da API Java filtrado pelo usuarioId
         if (listaUsuario.length === 0) {
           try {
-            const fazendasApi = await FazendaService.listarPorUsuario(usuarioAtivo?.id, isAdmin);
+            const fazendasApi = await FazendaService.listarPorUsuario(usuarioAtivo.id, isAdmin);
             if (fazendasApi && fazendasApi.length > 0) {
               listaUsuario = fazendasApi.map((f) => ({
                 id: String(f.id),
@@ -187,8 +148,8 @@ export const PainelUsuario: React.FC = () => {
           }
         }
 
-        // 4. Se o produtor acabou de se cadastrar com uma fazenda nova, insere no topo caso não exista
-        if (produtorInfo && produtorInfo.nomeFazenda && (!usuarioAtivo || String(produtorInfo.id) === String(usuarioAtivo.id))) {
+        // 4. Se o produtor acabou de se cadastrar com uma fazenda nova, insere no topo e limpa a chave temporária
+        if (produtorInfo && produtorInfo.nomeFazenda && String(produtorInfo.id) === String(usuarioAtivo.id)) {
           const jaExiste = listaUsuario.some(
             (f) => f.nome.toLowerCase() === produtorInfo.nomeFazenda.toLowerCase()
           );
@@ -211,9 +172,27 @@ export const PainelUsuario: React.FC = () => {
               talhoes: [{ id: Date.now(), nome: 'Talhão Principal', cultura: fazendaDoProdutor.cultura, areaHa: 10, limiteUmidade: 35, leituras: [] }]
             }).catch(() => {});
           }
+          localStorage.removeItem('agrosat_novo_produtor');
         }
 
         if (cancelado) return;
+
+        // 5. Define o plano e limite isolado por usuário
+        const savedPlan = localStorage.getItem(UsuarioService.getChavePlano());
+        const savedLimit = localStorage.getItem(UsuarioService.getChaveLimiteFazendas());
+        if (isAdmin) {
+          setPlanoAtual('Acesso Administrador (Cooperativa)');
+          setLimiteFazendas(Math.max(10, listaUsuario.length));
+        } else if (savedPlan === 'anual') {
+          setPlanoAtual('Plano Anual (até 10 fazendas)');
+          setLimiteFazendas(10);
+        } else if (savedPlan === 'mensal' || (!savedPlan && listaUsuario.length > 1)) {
+          setPlanoAtual('Plano Mensal (até 3 fazendas)');
+          setLimiteFazendas(Math.max(3, listaUsuario.length));
+        } else {
+          setPlanoAtual('Teste Grátis (1 fazenda)');
+          setLimiteFazendas(Math.max(Number(savedLimit) || 1, listaUsuario.length));
+        }
 
         // Salva estritamente na chave do usuário ativo
         localStorage.setItem(chavePlantacoes, JSON.stringify(listaUsuario));

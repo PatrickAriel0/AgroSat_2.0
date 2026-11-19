@@ -7,12 +7,13 @@ export const Header: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
   const usuarioAtivo = UsuarioService.getUsuarioAtivo();
+  const painelPath = usuarioAtivo?.tipo === 'ADMIN' ? '/admin-cooperativa' : '/painel-usuario';
 
   const navLinks = [
     { name: 'Home', path: '/' },
     { name: 'Sobre', path: '/sobre' },
     { name: 'Solução', path: '/solucao' },
-    { name: 'Painel', path: '/painel-usuario' },
+    ...(usuarioAtivo ? [{ name: 'Painel', path: painelPath }] : []),
     { name: 'FAQ', path: '/faq' },
     { name: 'Contato', path: '/contato' },
     { name: 'Equipe', path: '/integrantes' },
@@ -62,7 +63,7 @@ export const Header: React.FC = () => {
           <div className="flex items-center gap-3 pl-2 border-l border-brand-border">
             {usuarioAtivo ? (
               <Link
-                to="/painel-usuario"
+                to={painelPath}
                 className="text-xs bg-[#1d3a2a] text-[#7cc795] border border-[#7cc795]/30 px-3 py-1.5 rounded-full hover:bg-[#254d37] transition-colors font-medium flex items-center gap-1.5"
               >
                 <span className="w-2 h-2 rounded-full bg-[#7cc795] animate-pulse"></span>
@@ -120,7 +121,7 @@ export const Header: React.FC = () => {
           <div className="pt-2">
             {usuarioAtivo ? (
               <Link
-                to="/painel-usuario"
+                to={painelPath}
                 onClick={() => setMobileMenuOpen(false)}
                 className="block w-full text-center bg-[#1d3a2a] text-[#7cc795] border border-[#7cc795]/30 font-semibold text-sm py-2.5 rounded-full"
               >

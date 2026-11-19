@@ -1,8 +1,12 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Satellite, Globe, ShieldCheck, HeartHandshake } from 'lucide-react';
+import { UsuarioService } from '../services/api';
 
 export const Footer: React.FC = () => {
+  const usuarioAtivo = UsuarioService.getUsuarioAtivo();
+  const painelPath = usuarioAtivo?.tipo === 'ADMIN' ? '/admin-cooperativa' : '/painel-usuario';
+
   return (
     <footer className="border-t border-brand-border bg-[#030803] pt-16 pb-12 mt-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -40,7 +44,9 @@ export const Footer: React.FC = () => {
               <li><Link to="/" className="text-brand-text-muted hover:text-brand-primary transition-colors">Home</Link></li>
               <li><Link to="/sobre" className="text-brand-text-muted hover:text-brand-primary transition-colors">Sobre o Projeto</Link></li>
               <li><Link to="/solucao" className="text-brand-text-muted hover:text-brand-primary transition-colors">A Solução</Link></li>
-              <li><Link to="/painel-usuario" className="text-brand-text-muted hover:text-brand-primary transition-colors">Painel Interativo</Link></li>
+              {usuarioAtivo && (
+                <li><Link to={painelPath} className="text-brand-text-muted hover:text-brand-primary transition-colors">Painel Interativo</Link></li>
+              )}
               <li><Link to="/faq" className="text-brand-text-muted hover:text-brand-primary transition-colors">FAQ</Link></li>
               <li><Link to="/integrantes" className="text-brand-text-muted hover:text-brand-primary transition-colors">Equipe de Desenvolvimento</Link></li>
               <li><Link to="/contato" className="text-brand-text-muted hover:text-brand-primary transition-colors">Contato & Suporte</Link></li>

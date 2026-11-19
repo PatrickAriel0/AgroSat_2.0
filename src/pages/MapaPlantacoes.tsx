@@ -18,6 +18,7 @@ import {
   Trash2
 } from 'lucide-react';
 import { calcularRecomendacao, PlantacaoItem } from '../utils/recomendacao';
+import { UsuarioService, FazendaService } from '../services/api';
 
 setWorkerUrl(urlDoWorker);
 
@@ -62,53 +63,59 @@ export const MapaPlantacoes: React.FC = () => {
   const mapaRef = useRef<MapLibreMap | null>(null);
   const marcadoresRef = useRef<Marker[]>([]);
 
-  // Fazendas iniciais
-  const [fazendas, setFazendas] = useState<FazendaPonto[]>([
-    {
-      id: '1',
-      nome: 'Fazenda Feliz',
-      cultura: 'Soja',
-      situacao: 'Não regar',
-      subtexto: 'Solo abastecido · Chuva de 14,5 mm prevista',
-      cor: '#7cc795',
-      lat: -23.5349,
-      lng: -46.6212,
-    },
-    {
-      id: '2',
-      nome: 'Fazenda Triste',
-      cultura: 'Milho',
-      situacao: 'Regar hoje',
-      subtexto: 'Solo seco · Sem chuva prevista em 3 dias',
-      cor: '#6fa8e8',
-      lat: -22.9068,
-      lng: -47.0616,
-    },
-    {
-      id: '3',
-      nome: 'Fazenda Token Fortnite',
-      cultura: 'Café',
-      situacao: 'Atenção',
-      subtexto: 'Risco de encharcamento · Volume de 45 mm',
-      cor: '#e0b04a',
-      lat: -21.1775,
-      lng: -47.8103,
-    },
-  ]);
+  // Fazendas do usuário autenticado (inicia vazio, sem mocks estáticos)
+  const [fazendas, setFazendas] = useState<FazendaPonto[]>([]);
 
-  const [selecionadaId, setSelecionadaId] = useState<string>('1');
+  const [selecionadaId, setSelecionadaId] = useState<string>('');
   const [novoPontoMarcado, setNovoPontoMarcado] = useState<{ lat: number; lng: number } | null>(null);
   const [nomeNovaPlantacao, setNomeNovaPlantacao] = useState('');
   const [culturaNovaPlantacao, setCulturaNovaPlantacao] = useState('Soja');
   const [avisoSucesso, setAvisoSucesso] = useState<string | null>(null);
 
-  // Carrega as fazendas do usuário salvas
+  // Carrega as fazendas isoladas do usuário logado ou da API Java
   useEffect(() => {
-    try {
-      const savedUserList = localStorage.getItem('agrosat_plantacoes_usuario');
-      if (savedUserList) {
-        const parsedList: PlantacaoItem[] = JSON.parse(savedUserList);
-        if (Array.isArray(parsedList) && parsedList.length > 0) {
+    let cancelado = false;
+
+    async function carregarFazendasMapa() {
+      try {
+        const usuarioAtivo = UsuarioService.getUsuarioAtivo();
+        const isAdmin = usuarioAtivo?.tipo === 'ADMIN';
+        const chavePlantacoes = UsuarioService.getChavePlantacoes();
+
+        let parsedList: PlantacaoItem[] = [];
+        const savedUserList = localStorage.getItem(chavePlantacoes);
+        if (savedUserList) {
+          try {
+            const parsed = JSON.parse(savedUserList);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              parsedList = parsed;
+            }
+          } catch {
+            parsedList = [];
+          }
+        }
+
+        if (parsedList.length === 0 && usuarioAtivo) {
+          try {
+            const fazendasApi = await FazendaService.listarPorUsuario(usuarioAtivo.id, isAdmin);
+            if (fazendasApi && fazendasApi.length > 0) {
+              parsedList = fazendasApi.map((f) => ({
+                id: String(f.id),
+                nome: f.nome,
+                cultura: (f.talhoes && f.talhoes.length > 0 && f.talhoes[0].cultura) ? f.talhoes[0].cultura : 'Soja',
+                latitude: typeof f.latitude === 'number' ? f.latitude : -21.178,
+                longitude: typeof f.longitude === 'number' ? f.longitude : -47.811,
+              }));
+              localStorage.setItem(chavePlantacoes, JSON.stringify(parsedList));
+            }
+          } catch {
+            // tolera
+          }
+        }
+
+        if (cancelado) return;
+
+        if (parsedList.length > 0) {
           const convertidas: FazendaPonto[] = parsedList.map((p) => {
             const rec = calcularRecomendacao(p);
             return {
@@ -125,36 +132,17 @@ export const MapaPlantacoes: React.FC = () => {
           });
           setFazendas(convertidas);
           setSelecionadaId(convertidas[0].id);
-          return;
+        } else {
+          setFazendas([]);
+          setSelecionadaId('');
         }
+      } catch {
+        // ignore
       }
-
-      const saved = localStorage.getItem('agrosat_novo_produtor');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.nomeFazenda && parsed.latitude && parsed.longitude) {
-          const fazendaUser: FazendaPonto = {
-            id: 'user-farm',
-            nome: `${parsed.nomeFazenda} (Sua Propriedade)`,
-            cultura: parsed.plantio || 'Soja',
-            situacao: 'Não regar',
-            subtexto: 'Monitoramento georreferenciado via satélite',
-            cor: '#4ade80',
-            lat: parsed.latitude,
-            lng: parsed.longitude,
-            isUsuario: true,
-          };
-
-          setFazendas((prev) => {
-            const semUser = prev.filter((f) => f.id !== 'user-farm');
-            return [fazendaUser, ...semUser];
-          });
-          setSelecionadaId('user-farm');
-        }
-      }
-    } catch {
-      // ignore
     }
+
+    carregarFazendasMapa();
+    return () => { cancelado = true; };
   }, []);
 
   // Cria marcador customizado HTML
@@ -276,9 +264,11 @@ export const MapaPlantacoes: React.FC = () => {
 
     setFazendas((prev) => [nova, ...prev]);
 
-    // Sincroniza com as plantações salvas do painel
+    // Sincroniza com as plantações salvas do usuário ativo e envia para a API Java
     try {
-      const salvas = localStorage.getItem('agrosat_plantacoes_usuario');
+      const chavePlantacoes = UsuarioService.getChavePlantacoes();
+      const chaveSelecionada = UsuarioService.getChaveSelecionada();
+      const salvas = localStorage.getItem(chavePlantacoes);
       const listaAtual = salvas ? JSON.parse(salvas) : [];
       const itemParaPainel: PlantacaoItem = {
         id: nova.id,
@@ -287,8 +277,26 @@ export const MapaPlantacoes: React.FC = () => {
         latitude: nova.lat,
         longitude: nova.lng,
       };
-      localStorage.setItem('agrosat_plantacoes_usuario', JSON.stringify([itemParaPainel, ...listaAtual]));
-      localStorage.setItem('agrosat_fazenda_selecionada', nova.nome);
+      localStorage.setItem(chavePlantacoes, JSON.stringify([itemParaPainel, ...listaAtual]));
+      localStorage.setItem(chaveSelecionada, nova.nome);
+
+      FazendaService.cadastrar({
+        nome: nova.nome,
+        municipio: 'Interior',
+        uf: 'SP',
+        latitude: nova.lat,
+        longitude: nova.lng,
+        talhoes: [
+          {
+            id: Date.now() + 1,
+            nome: 'Talhão Principal',
+            cultura: nova.cultura,
+            areaHa: 10,
+            limiteUmidade: 35,
+            leituras: []
+          }
+        ]
+      }).catch(() => {});
     } catch {
       // ignore
     }
@@ -330,14 +338,16 @@ export const MapaPlantacoes: React.FC = () => {
       }
     }
 
-    // Sincroniza a remoção no localStorage do painel do usuário
+    // Sincroniza a remoção no localStorage do usuário ativo e na API Java
     try {
-      const salvas = localStorage.getItem('agrosat_plantacoes_usuario');
+      const chavePlantacoes = UsuarioService.getChavePlantacoes();
+      const salvas = localStorage.getItem(chavePlantacoes);
       if (salvas) {
         const parsed = JSON.parse(salvas);
         const filtrada = parsed.filter((p: any) => p.id !== fazenda.id && p.nome !== fazenda.nome);
-        localStorage.setItem('agrosat_plantacoes_usuario', JSON.stringify(filtrada));
+        localStorage.setItem(chavePlantacoes, JSON.stringify(filtrada));
       }
+      FazendaService.remover(fazenda.id).catch(() => {});
     } catch {
       // ignore
     }
@@ -409,57 +419,65 @@ export const MapaPlantacoes: React.FC = () => {
               </p>
 
               {/* Lista das Fazendas */}
-              <div className="space-y-2.5 max-h-[380px] overflow-y-auto pr-1">
-                {fazendas.map((fazenda) => {
-                  const isActive = fazenda.id === selecionadaId;
-                  return (
-                    <div
-                      key={fazenda.id}
-                      onClick={() => focarFazenda(fazenda)}
-                      className={`rounded-xl p-3.5 cursor-pointer transition-all border ${
-                        isActive
-                          ? 'bg-[#1a2d23] border-[#7cc795] shadow-[0_0_15px_rgba(124,199,149,0.15)] ring-1 ring-[#7cc795]/40'
-                          : 'bg-[#0e1712] border-[#243a2d] hover:border-[#2f4838]'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between mb-1">
-                        <b className="font-heading text-base font-bold text-white flex items-center gap-1.5 truncate pr-2">
-                          {fazenda.isUsuario && (
-                            <span className="w-2 h-2 rounded-full bg-[#4ade80] animate-pulse shrink-0"></span>
-                          )}
-                          <span className="truncate">{fazenda.nome}</span>
-                        </b>
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <span className="text-[11px] text-[#9fb5a6] font-mono">{fazenda.cultura}</span>
-                          <button
-                            type="button"
-                            onClick={(e) => handleExcluirFazenda(e, fazenda)}
-                            className="p-1 text-[#9fb5a6] hover:text-red-400 hover:bg-red-950/40 rounded transition-colors"
-                            title={`Excluir ${fazenda.nome}`}
-                            aria-label={`Excluir ${fazenda.nome}`}
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+              {fazendas.length === 0 ? (
+                <div className="bg-[#0e1712] border border-[#243a2d] rounded-xl p-4 text-center">
+                  <p className="text-xs text-[#9fb5a6]">
+                    Nenhuma plantação cadastrada ainda. Clique em qualquer ponto do mapa ao lado para marcar sua primeira lavoura.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2.5 max-h-[380px] overflow-y-auto pr-1">
+                  {fazendas.map((fazenda) => {
+                    const isActive = fazenda.id === selecionadaId;
+                    return (
+                      <div
+                        key={fazenda.id}
+                        onClick={() => focarFazenda(fazenda)}
+                        className={`rounded-xl p-3.5 cursor-pointer transition-all border ${
+                          isActive
+                            ? 'bg-[#1a2d23] border-[#7cc795] shadow-[0_0_15px_rgba(124,199,149,0.15)] ring-1 ring-[#7cc795]/40'
+                            : 'bg-[#0e1712] border-[#243a2d] hover:border-[#2f4838]'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <b className="font-heading text-base font-bold text-white flex items-center gap-1.5 truncate pr-2">
+                            {fazenda.isUsuario && (
+                              <span className="w-2 h-2 rounded-full bg-[#4ade80] animate-pulse shrink-0"></span>
+                            )}
+                            <span className="truncate">{fazenda.nome}</span>
+                          </b>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span className="text-[11px] text-[#9fb5a6] font-mono">{fazenda.cultura}</span>
+                            <button
+                              type="button"
+                              onClick={(e) => handleExcluirFazenda(e, fazenda)}
+                              className="p-1 text-[#9fb5a6] hover:text-red-400 hover:bg-red-950/40 rounded transition-colors"
+                              title={`Excluir ${fazenda.nome}`}
+                              aria-label={`Excluir ${fazenda.nome}`}
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </div>
-                      </div>
 
-                      <div className="flex items-center gap-2 mb-1">
-                        <span
-                          className="text-xs font-semibold"
-                          style={{ color: fazenda.cor }}
-                        >
-                          {fazenda.situacao}
-                        </span>
-                        <span className="text-[10px] text-[#9fb5a6]">
-                          ({fazenda.lat.toFixed(4)}, {fazenda.lng.toFixed(4)})
-                        </span>
-                      </div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span
+                            className="text-xs font-semibold"
+                            style={{ color: fazenda.cor }}
+                          >
+                            {fazenda.situacao}
+                          </span>
+                          <span className="text-[10px] text-[#9fb5a6]">
+                            ({fazenda.lat.toFixed(4)}, {fazenda.lng.toFixed(4)})
+                          </span>
+                        </div>
 
-                      <p className="text-[11px] text-[#9fb5a6]">{fazenda.subtexto}</p>
-                    </div>
-                  );
-                })}
-              </div>
+                        <p className="text-[11px] text-[#9fb5a6]">{fazenda.subtexto}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             {/* Formulário para Cadastrar Ponto Clicado no Mapa */}
@@ -540,16 +558,24 @@ export const MapaPlantacoes: React.FC = () => {
             <div className="flex flex-wrap items-center justify-between gap-3 px-2">
               <div className="flex items-center gap-2 text-sm text-white">
                 <MapPin className="w-4 h-4 text-[#7cc795]" />
-                <span>
-                  Foco: <strong>{fazendaAtiva.nome}</strong> ({fazendaAtiva.cultura})
-                </span>
+                {fazendaAtiva ? (
+                  <span>
+                    Foco: <strong>{fazendaAtiva.nome}</strong> ({fazendaAtiva.cultura})
+                  </span>
+                ) : (
+                  <span className="text-xs text-[#9fb5a6]">
+                    Clique no mapa para marcar uma nova propriedade
+                  </span>
+                )}
               </div>
-              <span
-                className="text-xs font-semibold px-2.5 py-1 rounded-md"
-                style={{ backgroundColor: `${fazendaAtiva.cor}22`, color: fazendaAtiva.cor }}
-              >
-                Status: {fazendaAtiva.situacao}
-              </span>
+              {fazendaAtiva && (
+                <span
+                  className="text-xs font-semibold px-2.5 py-1 rounded-md"
+                  style={{ backgroundColor: `${fazendaAtiva.cor}22`, color: fazendaAtiva.cor }}
+                >
+                  Status: {fazendaAtiva.situacao}
+                </span>
+              )}
             </div>
 
             {/* Container do Mapa Real */}

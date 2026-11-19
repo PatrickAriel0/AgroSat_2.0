@@ -24,21 +24,22 @@ export const Login: React.FC = () => {
       setErro(null);
 
       // 1. Consulta o usuário na API Java REST (ou armazenamento local espelhado)
-      let usuario = await UsuarioService.buscarPorEmail(email.trim());
+      const usuario = await UsuarioService.buscarPorEmail(email.trim());
 
       if (!usuario) {
-        // Se ainda não existir na API, cadastra automaticamente para garantir acesso imediato
-        const nomeFormatado = email.split('@')[0].replace(/[._-]/g, ' ');
-        const nomeCapitalizado = nomeFormatado.charAt(0).toUpperCase() + nomeFormatado.slice(1);
-        usuario = await UsuarioService.cadastrar({
-          nome: nomeCapitalizado,
-          email: email.trim(),
-          senha: senha.trim(),
-          tipo: tipoConta === 'admin' ? 'ADMIN' : 'PRODUTOR'
-        });
+        setErro('Nenhuma conta encontrada com este e-mail. Verifique os dados digitados ou clique em "Criar conta de produtor".');
+        return;
       }
 
-      // 2. Registra o usuário autenticado na sessão ativa
+      if (tipoConta === 'admin' && usuario.tipo !== 'ADMIN') {
+        setErro('Esta conta não possui privilégios de Administrador. Selecione a aba "Usuário" para entrar como Produtor.');
+        return;
+      }
+
+      // 2. Limpa qualquer resíduo de onboarding anterior e registra a sessão ativa
+      try {
+        localStorage.removeItem('agrosat_novo_produtor');
+      } catch {}
       UsuarioService.setUsuarioAtivo(usuario);
 
       // 3. Redireciona conforme o perfil selecionado ou o perfil retornado pela API
@@ -204,9 +205,9 @@ export const Login: React.FC = () => {
             </div>
 
             <div className="flex items-center justify-between text-xs pt-2">
-              <a href="#" className="text-[#7cc795] hover:underline">
-                Esqueci minha senha
-              </a>
+              <Link to="/contato" className="text-[#7cc795] hover:underline">
+                Precisa de ajuda com o acesso?
+              </Link>
               <Link to="/cadastro" className="text-[#7cc795] hover:underline font-semibold">
                 Criar conta de produtor
               </Link>

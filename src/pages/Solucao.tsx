@@ -1,8 +1,16 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, XCircle, CheckCircle, Droplets, Zap, ShieldCheck } from 'lucide-react';
+import { UsuarioService } from '../services/api';
 
 export const Solucao: React.FC = () => {
+  const usuarioAtivo = UsuarioService.getUsuarioAtivo();
+  const destinoPainel = usuarioAtivo
+    ? usuarioAtivo.tipo === 'ADMIN'
+      ? '/admin-cooperativa'
+      : '/painel-usuario'
+    : '/login';
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-20">
       {/* Hero */}
@@ -110,10 +118,10 @@ export const Solucao: React.FC = () => {
       {/* Link para o Painel */}
       <div className="text-center pt-4">
         <Link
-          to="/painel-usuario"
+          to={destinoPainel}
           className="inline-flex items-center gap-2 bg-brand-primary hover:bg-brand-primary-hover text-black font-semibold text-base px-8 py-3.5 rounded-full transition-all shadow-[0_4px_20px_rgba(74,222,128,0.3)]"
         >
-          Experimentar o Painel Interativo <ArrowRight className="w-4 h-4" />
+          {usuarioAtivo ? 'Acessar Painel Interativo' : 'Entrar para Acessar o Painel'} <ArrowRight className="w-4 h-4" />
         </Link>
       </div>
     </div>

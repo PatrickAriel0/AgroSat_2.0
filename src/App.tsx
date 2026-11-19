@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
 
@@ -10,11 +10,9 @@ import { FAQ } from './pages/FAQ';
 import { Contato } from './pages/Contato';
 import { Integrantes } from './pages/Integrantes';
 import { IntegranteDetalhe } from './pages/IntegranteDetalhe';
-import { Painel } from './pages/Painel';
-import { CadastrarFazenda } from './pages/CadastrarFazenda';
-import { FazendaDetalhe } from './pages/FazendaDetalhe';
+import { NotFound } from './pages/NotFound';
 
-// Novas Páginas de Autenticação, Onboarding e Dashboard do Usuário
+// Páginas de Autenticação, Onboarding e Dashboard do Usuário
 import { Login } from './pages/Login';
 import { Cadastro } from './pages/Cadastro';
 import { Planos } from './pages/Planos';
@@ -22,6 +20,7 @@ import { PainelUsuario } from './pages/PainelUsuario';
 import { RecomendacaoHoje } from './pages/RecomendacaoHoje';
 import { MapaPlantacoes } from './pages/MapaPlantacoes';
 import { AdminCooperativa } from './pages/AdminCooperativa';
+import { UsuarioService } from './services/api';
 
 // Helper component to scroll to top on route change
 const ScrollToTop: React.FC = () => {
@@ -32,6 +31,15 @@ const ScrollToTop: React.FC = () => {
   }, [pathname]);
 
   return null;
+};
+
+// Proteção de rota: exige sessão ativa para acessar os módulos do painel
+const PrivateRoute: React.FC<{ children: React.ReactElement }> = ({ children }) => {
+  const usuarioAtivo = UsuarioService.getUsuarioAtivo();
+  if (!usuarioAtivo) {
+    return <Navigate to="/login" replace />;
+  }
+  return children;
 };
 
 // Rotas que possuem layout dedicado (sem Header/Footer padrão duplicado)
@@ -66,21 +74,21 @@ const AppContent: React.FC = () => {
           {/* Autenticação & Onboarding */}
           <Route path="/login" element={<Login />} />
           <Route path="/cadastro" element={<Cadastro />} />
-          <Route path="/planos" element={<Planos />} />
+          <Route path="/planos" element={<PrivateRoute><Planos /></PrivateRoute>} />
 
-          {/* Dashboards & Soluções CitizenTech */}
-          <Route path="/painel-usuario" element={<PainelUsuario />} />
-          <Route path="/recomendacao-hoje" element={<RecomendacaoHoje />} />
-          <Route path="/mapa-plantacoes" element={<MapaPlantacoes />} />
-          <Route path="/admin-cooperativa" element={<AdminCooperativa />} />
+          {/* Dashboards & Soluções CitizenTech (Protegidas por Sessão) */}
+          <Route path="/painel-usuario" element={<PrivateRoute><PainelUsuario /></PrivateRoute>} />
+          <Route path="/recomendacao-hoje" element={<PrivateRoute><RecomendacaoHoje /></PrivateRoute>} />
+          <Route path="/mapa-plantacoes" element={<PrivateRoute><MapaPlantacoes /></PrivateRoute>} />
+          <Route path="/admin-cooperativa" element={<PrivateRoute><AdminCooperativa /></PrivateRoute>} />
 
-          {/* Páginas da Solução Legadas / Detalhes de Fazenda */}
-          <Route path="/painel" element={<Painel />} />
-          <Route path="/painel/nova-fazenda" element={<CadastrarFazenda />} />
-          <Route path="/painel/fazenda/:id" element={<FazendaDetalhe />} />
+          {/* Redirecionamento de Rotas Legadas para o Painel Atual */}
+          <Route path="/painel" element={<Navigate to="/painel-usuario" replace />} />
+          <Route path="/painel/nova-fazenda" element={<Navigate to="/painel-usuario" replace />} />
+          <Route path="/painel/fazenda/:id" element={<Navigate to="/painel-usuario" replace />} />
 
-          {/* Fallback */}
-          <Route path="*" element={<Home />} />
+          {/* Página 404 Personalizada */}
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
       {!temLayoutProprio && <Footer />}

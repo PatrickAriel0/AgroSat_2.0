@@ -522,6 +522,36 @@ export const UsuarioService = {
 
   logout() {
     this.setUsuarioAtivo(null);
+    try {
+      localStorage.removeItem('agrosat_novo_produtor');
+    } catch {}
+  },
+
+  getUserIdentifier(): string {
+    const u = this.getUsuarioAtivo();
+    if (u?.id) return `uid_${u.id}`;
+    if (u?.email) return u.email.trim().toLowerCase();
+    return 'anonimo';
+  },
+
+  getChavePlantacoes(): string {
+    return `agrosat_plantacoes_${this.getUserIdentifier()}`;
+  },
+
+  getChaveSelecionada(): string {
+    return `agrosat_selecionada_${this.getUserIdentifier()}`;
+  },
+
+  getChaveHistorico(): string {
+    return `agrosat_historico_${this.getUserIdentifier()}`;
+  },
+
+  getChavePlano(): string {
+    return `agrosat_plano_${this.getUserIdentifier()}`;
+  },
+
+  getChaveLimiteFazendas(): string {
+    return `agrosat_limite_${this.getUserIdentifier()}`;
   },
 
   async listar(): Promise<Usuario[]> {

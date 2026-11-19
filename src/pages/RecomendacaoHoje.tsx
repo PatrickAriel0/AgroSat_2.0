@@ -12,9 +12,7 @@ import {
 } from 'lucide-react';
 import CartaoSolo from '../components/CartaoSolo';
 import { calcularRecomendacao, PlantacaoItem } from '../utils/recomendacao';
-
-const STORAGE_KEY_PLANTACOES = 'agrosat_plantacoes_usuario';
-const STORAGE_KEY_SELECIONADA = 'agrosat_fazenda_selecionada';
+import { UsuarioService, FazendaService } from '../services/api';
 
 export const RecomendacaoHoje: React.FC = () => {
   const [atualizando, setAtualizando] = useState(false);
@@ -40,36 +38,68 @@ export const RecomendacaoHoje: React.FC = () => {
   const decisao = aguaSolo > 25 || parseFloat(saldoLiquido) > 0 ? 'NÃO REGAR' : 'REGAR';
   const decisaoCor = decisao === 'NÃO REGAR' ? '#7cc795' : '#6fa8e8';
 
-  // Carrega as fazendas do produtor e a fazenda ativa
+  // Carrega as fazendas do produtor logado (isoladas por usuário) e a fazenda ativa
   useEffect(() => {
-    try {
-      let listaCarregada: PlantacaoItem[] = [];
-      const salvas = localStorage.getItem(STORAGE_KEY_PLANTACOES);
+    let cancelado = false;
 
-      if (salvas) {
-        try {
-          const parsed = JSON.parse(salvas);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            listaCarregada = parsed;
+    async function carregarPlantacoesUsuario() {
+      try {
+        const usuarioAtivo = UsuarioService.getUsuarioAtivo();
+        const isAdmin = usuarioAtivo?.tipo === 'ADMIN';
+        const chavePlantacoes = UsuarioService.getChavePlantacoes();
+        const chaveSelecionada = UsuarioService.getChaveSelecionada();
+
+        let listaCarregada: PlantacaoItem[] = [];
+        const salvas = localStorage.getItem(chavePlantacoes);
+
+        if (salvas) {
+          try {
+            const parsed = JSON.parse(salvas);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              listaCarregada = parsed;
+            }
+          } catch {
+            listaCarregada = [];
           }
-        } catch {
-          listaCarregada = [];
         }
-      }
 
-      setPlantacoes(listaCarregada);
-
-      if (listaCarregada.length > 0) {
-        const ultimaEscolhida = localStorage.getItem(STORAGE_KEY_SELECIONADA);
-        const fazendaAlvo = listaCarregada.find((f) => f.nome === ultimaEscolhida) || listaCarregada[0];
-        if (fazendaAlvo) {
-          aplicarFazenda(fazendaAlvo);
+        if (listaCarregada.length === 0 && usuarioAtivo) {
+          try {
+            const fazendasApi = await FazendaService.listarPorUsuario(usuarioAtivo.id, isAdmin);
+            if (fazendasApi && fazendasApi.length > 0) {
+              listaCarregada = fazendasApi.map((f) => ({
+                id: String(f.id),
+                nome: f.nome,
+                cultura: (f.talhoes && f.talhoes.length > 0 && f.talhoes[0].cultura) ? f.talhoes[0].cultura : 'Soja',
+                latitude: typeof f.latitude === 'number' ? f.latitude : -21.178,
+                longitude: typeof f.longitude === 'number' ? f.longitude : -47.811,
+              }));
+              localStorage.setItem(chavePlantacoes, JSON.stringify(listaCarregada));
+            }
+          } catch {
+            // tolera
+          }
         }
+
+        if (cancelado) return;
+
+        setPlantacoes(listaCarregada);
+
+        if (listaCarregada.length > 0) {
+          const ultimaEscolhida = localStorage.getItem(chaveSelecionada);
+          const fazendaAlvo = listaCarregada.find((f) => f.nome === ultimaEscolhida) || listaCarregada[0];
+          if (fazendaAlvo) {
+            aplicarFazenda(fazendaAlvo);
+          }
+        }
+        setCarregado(true);
+      } catch {
+        if (!cancelado) setCarregado(true);
       }
-      setCarregado(true);
-    } catch {
-      setCarregado(true);
     }
+
+    carregarPlantacoesUsuario();
+    return () => { cancelado = true; };
   }, []);
 
   const aplicarFazenda = (fazenda: PlantacaoItem) => {
@@ -92,7 +122,7 @@ export const RecomendacaoHoje: React.FC = () => {
     const alvo = plantacoes.find((p) => p.nome === nomeEscolhido);
     if (alvo) {
       aplicarFazenda(alvo);
-      localStorage.setItem(STORAGE_KEY_SELECIONADA, alvo.nome);
+      localStorage.setItem(UsuarioService.getChaveSelecionada(), alvo.nome);
     }
   };
 
