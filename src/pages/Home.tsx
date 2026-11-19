@@ -28,7 +28,7 @@ export const Home: React.FC = () => {
 
               <div className="flex flex-wrap items-center gap-4 pt-2">
                 <Link
-                  to="/painel"
+                  to="/painel-usuario"
                   className="bg-brand-primary hover:bg-brand-primary-hover text-black font-semibold px-8 py-3.5 rounded-full transition-all duration-200 flex items-center gap-2 shadow-[0_4px_20px_rgba(74,222,128,0.35)] hover:scale-[1.02]"
                 >
                   Ver Painel Interativo <ArrowRight className="w-4 h-4" />
@@ -183,7 +183,7 @@ export const Home: React.FC = () => {
           </p>
           <div className="flex flex-wrap items-center justify-center gap-4">
             <Link
-              to="/painel"
+              to="/painel-usuario"
               className="bg-brand-primary hover:bg-brand-primary-hover text-black font-semibold px-8 py-3.5 rounded-full transition-all shadow-[0_2px_15px_rgba(74,222,128,0.3)]"
             >
               Acessar Painel AgroSat

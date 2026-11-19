@@ -27,9 +27,9 @@ export const AdminCooperativa: React.FC = () => {
       <div className="h-20 px-6 sm:px-12 lg:px-16 border-b border-[#243a2d] bg-[#0a120d] flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Link
-            to="/login"
+            to="/painel-usuario"
             className="text-[#9fb5a6] hover:text-white p-2 rounded-lg hover:bg-[#14211a] transition-colors"
-            title="Voltar ao Login"
+            title="Voltar à Visão Geral"
           >
             <ArrowLeft className="w-5 h-5" />
           </Link>
@@ -43,10 +43,16 @@ export const AdminCooperativa: React.FC = () => {
           </Link>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-[#9fb5a6] text-sm">Administrador · Cooperativa Vale Verde</span>
+          <span className="text-[#9fb5a6] text-sm hidden sm:inline-block">Administrador · Cooperativa Vale Verde</span>
           <span className="hidden sm:inline-block bg-[#1d3a2a] text-[#7cc795] text-xs font-semibold px-2.5 py-1 rounded">
             Admin
           </span>
+          <Link
+            to="/painel-usuario"
+            className="text-xs bg-[#1d3a2a] text-[#7cc795] px-3.5 py-2 rounded-lg border border-[#7cc795]/30 hover:bg-[#254d37] transition-colors font-semibold"
+          >
+            Visão Geral
+          </Link>
         </div>
       </div>
 

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Satellite, Check, ArrowRight, ShieldCheck } from 'lucide-react';
+import { Satellite, Check, ArrowRight, ShieldCheck, ArrowLeft } from 'lucide-react';
 
 export const Planos: React.FC = () => {
   const navigate = useNavigate();
@@ -82,15 +82,32 @@ export const Planos: React.FC = () => {
     <div className="min-h-screen bg-[#0e1712] text-[#e6efe8] pb-16">
       {/* Top Header */}
       <div className="h-20 px-6 sm:px-12 lg:px-16 border-b border-[#243a2d] bg-[#0a120d] flex items-center justify-between">
-        <Link to="/" className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-full bg-emerald-950 border border-brand-primary/40 flex items-center justify-center text-brand-primary">
-            <Satellite className="w-5 h-5" />
-          </div>
-          <span className="font-heading text-2xl font-bold tracking-wider text-white">
-            Agro<span className="text-brand-primary">Sat</span>
-          </span>
-        </Link>
-        <span className="text-[#9fb5a6] text-sm">Passo 2 de 3 · Escolha do Plano</span>
+        <div className="flex items-center gap-4">
+          <Link
+            to="/painel-usuario"
+            className="text-[#9fb5a6] hover:text-white p-2 rounded-lg hover:bg-[#14211a] transition-colors"
+            title="Voltar à Visão Geral"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </Link>
+          <Link to="/" className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-full bg-emerald-950 border border-brand-primary/40 flex items-center justify-center text-brand-primary">
+              <Satellite className="w-5 h-5" />
+            </div>
+            <span className="font-heading text-2xl font-bold tracking-wider text-white">
+              Agro<span className="text-brand-primary">Sat</span>
+            </span>
+          </Link>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-[#9fb5a6] text-sm hidden sm:inline-block">Planos & Assinaturas</span>
+          <Link
+            to="/painel-usuario"
+            className="text-xs bg-[#1d3a2a] text-[#7cc795] px-3.5 py-2 rounded-lg border border-[#7cc795]/30 hover:bg-[#254d37] transition-colors font-semibold"
+          >
+            Visão Geral
+          </Link>
+        </div>
       </div>
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 sm:pt-14">

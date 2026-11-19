@@ -83,11 +83,19 @@ export const Painel: React.FC = () => {
           {/* Chamadas de Ação para Cadastro e Login */}
           <div className="pt-2 flex flex-wrap items-center gap-3.5">
             <Link
-              to="/cadastro"
+              to="/painel-usuario"
               className="bg-brand-primary hover:bg-brand-primary-hover text-black font-semibold text-sm px-6 py-3 rounded-xl transition-all duration-200 flex items-center gap-2 shadow-[0_2px_15px_rgba(74,222,128,0.3)] hover:scale-[1.02]"
             >
-              <UserPlus className="w-4 h-4" />
-              <span>Criar minha conta e começar</span>
+              <TrendingUp className="w-4 h-4" />
+              <span>Acessar Painel do Usuário (Visão Geral)</span>
+            </Link>
+
+            <Link
+              to="/cadastro"
+              className="border border-[#2f4838] bg-[#0e1712] hover:bg-[#1a2d23] text-white font-medium text-sm px-5 py-3 rounded-xl transition-colors flex items-center gap-2"
+            >
+              <UserPlus className="w-4 h-4 text-[#7cc795]" />
+              <span>Criar nova conta</span>
             </Link>
 
             <Link
@@ -95,7 +103,7 @@ export const Painel: React.FC = () => {
               className="border border-[#2f4838] bg-[#0e1712] hover:bg-[#1a2d23] text-white font-medium text-sm px-5 py-3 rounded-xl transition-colors flex items-center gap-2"
             >
               <LogIn className="w-4 h-4 text-[#7cc795]" />
-              <span>Já tenho conta (Entrar)</span>
+              <span>Entrar</span>
             </Link>
 
             <Link

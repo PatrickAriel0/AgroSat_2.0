@@ -48,7 +48,7 @@ export const RecomendacaoHoje: React.FC = () => {
           <Link
             to="/painel-usuario"
             className="text-[#9fb5a6] hover:text-white p-2 rounded-lg hover:bg-[#14211a] transition-colors"
-            title="Voltar ao Painel"
+            title="Voltar à Visão Geral"
           >
             <ArrowLeft className="w-5 h-5" />
           </Link>
@@ -67,9 +67,9 @@ export const RecomendacaoHoje: React.FC = () => {
           </span>
           <Link
             to="/painel-usuario"
-            className="text-xs bg-[#1d3a2a] text-[#7cc795] px-3 py-1.5 rounded-lg border border-[#7cc795]/30 hover:bg-[#254d37] transition-colors"
+            className="text-xs bg-[#1d3a2a] text-[#7cc795] px-3.5 py-2 rounded-lg border border-[#7cc795]/30 hover:bg-[#254d37] transition-colors font-semibold"
           >
-            Meu Painel
+            Visão Geral
           </Link>
         </div>
       </div>

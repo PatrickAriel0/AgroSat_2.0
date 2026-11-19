@@ -40,7 +40,7 @@ export const Footer: React.FC = () => {
               <li><Link to="/" className="text-brand-text-muted hover:text-brand-primary transition-colors">Home</Link></li>
               <li><Link to="/sobre" className="text-brand-text-muted hover:text-brand-primary transition-colors">Sobre o Projeto</Link></li>
               <li><Link to="/solucao" className="text-brand-text-muted hover:text-brand-primary transition-colors">A Solução</Link></li>
-              <li><Link to="/painel" className="text-brand-text-muted hover:text-brand-primary transition-colors">Painel Interativo</Link></li>
+              <li><Link to="/painel-usuario" className="text-brand-text-muted hover:text-brand-primary transition-colors">Painel Interativo</Link></li>
               <li><Link to="/faq" className="text-brand-text-muted hover:text-brand-primary transition-colors">FAQ</Link></li>
               <li><Link to="/integrantes" className="text-brand-text-muted hover:text-brand-primary transition-colors">Equipe de Desenvolvimento</Link></li>
               <li><Link to="/contato" className="text-brand-text-muted hover:text-brand-primary transition-colors">Contato & Suporte</Link></li>

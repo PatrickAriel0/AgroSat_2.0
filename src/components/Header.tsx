@@ -10,7 +10,7 @@ export const Header: React.FC = () => {
     { name: 'Home', path: '/' },
     { name: 'Sobre', path: '/sobre' },
     { name: 'Solução', path: '/solucao' },
-    { name: 'Painel', path: '/painel' },
+    { name: 'Painel', path: '/painel-usuario' },
     { name: 'FAQ', path: '/faq' },
     { name: 'Contato', path: '/contato' },
     { name: 'Equipe', path: '/integrantes' },

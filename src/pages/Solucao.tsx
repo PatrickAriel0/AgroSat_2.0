@@ -110,7 +110,7 @@ export const Solucao: React.FC = () => {
       {/* Link para o Painel */}
       <div className="text-center pt-4">
         <Link
-          to="/painel"
+          to="/painel-usuario"
           className="inline-flex items-center gap-2 bg-brand-primary hover:bg-brand-primary-hover text-black font-semibold text-base px-8 py-3.5 rounded-full transition-all shadow-[0_4px_20px_rgba(74,222,128,0.3)]"
         >
           Experimentar o Painel Interativo <ArrowRight className="w-4 h-4" />

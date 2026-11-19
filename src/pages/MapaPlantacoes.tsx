@@ -354,9 +354,9 @@ export const MapaPlantacoes: React.FC = () => {
       <div className="h-20 px-6 sm:px-12 lg:px-16 border-b border-[#243a2d] bg-[#0a120d] flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Link
-            to="/painel"
+            to="/painel-usuario"
             className="text-[#9fb5a6] hover:text-white p-2 rounded-lg hover:bg-[#14211a] transition-colors"
-            title="Voltar ao Painel"
+            title="Voltar à Visão Geral"
           >
             <ArrowLeft className="w-5 h-5" />
           </Link>
@@ -369,11 +369,17 @@ export const MapaPlantacoes: React.FC = () => {
             </span>
           </Link>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <span className="text-xs text-[#9fb5a6] hidden sm:inline">Motor de Mapa:</span>
-          <span className="text-xs bg-[#1d3a2a] text-[#7cc795] px-2.5 py-1 rounded font-mono border border-[#7cc795]/30">
+          <span className="text-xs bg-[#1d3a2a] text-[#7cc795] px-2.5 py-1 rounded font-mono border border-[#7cc795]/30 hidden sm:inline-block">
             MapLibre GL API
           </span>
+          <Link
+            to="/painel-usuario"
+            className="text-xs bg-[#1d3a2a] text-[#7cc795] px-3.5 py-2 rounded-lg border border-[#7cc795]/30 hover:bg-[#254d37] transition-colors font-semibold"
+          >
+            Visão Geral
+          </Link>
         </div>
       </div>
 
