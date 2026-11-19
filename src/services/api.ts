@@ -44,63 +44,177 @@ function saveLocalUsuariosDb(usuarios: Usuario[]) {
 const FAZENDAS_INICIAIS: Fazenda[] = [
   {
     id: 1,
-    nome: 'Fazenda Santa Luzia',
-    municipio: 'Campinas',
+    nome: 'Fazenda Santa Maria',
+    municipio: 'Ribeirão Preto',
     uf: 'SP',
-    latitude: -22.9056,
-    longitude: -47.0608,
+    latitude: -21.178,
+    longitude: -47.811,
     autorizaOpenMeteo: true,
     sistemaIrrigacao: 'Gotejamento de precisão',
     tipoSolo: 'Latossolo Vermelho',
-    observacoes: 'Monitoramento de tomates especiais em campo aberto',
+    observacoes: 'Monitoramento de soja em pivô central',
     talhoes: [
       {
         id: 101,
         nome: 'Talhão Norte',
-        cultura: 'Tomate',
-        areaHa: 2.5,
+        cultura: 'Soja',
+        areaHa: 45.0,
         limiteUmidade: 35,
-        leituras: [
-          { id: 1, dataHora: '16/11/2026, 08:30:00', valorUmidade: 28 },
-          { id: 2, dataHora: '15/11/2026, 08:10:00', valorUmidade: 41 },
-          { id: 3, dataHora: '14/11/2026, 08:00:00', valorUmidade: 44 }
-        ]
-      },
-      {
-        id: 102,
-        nome: 'Talhão Sul',
-        cultura: 'Milho',
-        areaHa: 5.0,
-        limiteUmidade: 40,
-        leituras: [
-          { id: 4, dataHora: '16/11/2026, 08:35:00', valorUmidade: 38 },
-          { id: 5, dataHora: '15/11/2026, 08:15:00', valorUmidade: 42 }
-        ]
+        leituras: [{ id: 1, dataHora: '19/11/2026, 08:30:00', valorUmidade: 32 }]
       }
     ]
   },
   {
     id: 2,
-    nome: 'Sítio Boa Esperança',
-    municipio: 'Uberlândia',
-    uf: 'MG',
-    latitude: -18.9186,
-    longitude: -48.2772,
+    nome: 'Fazenda Boa Vista',
+    municipio: 'Franca',
+    uf: 'SP',
+    latitude: -21.2005,
+    longitude: -47.7505,
     autorizaOpenMeteo: true,
     sistemaIrrigacao: 'Aspersão convencional',
-    tipoSolo: 'Argissolo',
-    observacoes: 'Produção familiar de hortaliças e feijão',
+    tipoSolo: 'Nitossolo Vermelho',
+    observacoes: 'Lavoura de café de alta altitude',
     talhoes: [
       {
         id: 201,
-        nome: 'Talhão Horta 1',
-        cultura: 'Alface e Folhosas',
-        areaHa: 1.2,
-        limiteUmidade: 50,
-        leituras: [
-          { id: 6, dataHora: '16/11/2026, 07:45:00', valorUmidade: 52 },
-          { id: 7, dataHora: '15/11/2026, 07:30:00', valorUmidade: 48 }
-        ]
+        nome: 'Gleba Sul',
+        cultura: 'Café',
+        areaHa: 30.0,
+        limiteUmidade: 38,
+        leituras: [{ id: 2, dataHora: '19/11/2026, 07:45:00', valorUmidade: 28 }]
+      }
+    ]
+  },
+  {
+    id: 3,
+    nome: 'Fazenda Esperança',
+    municipio: 'Londrina',
+    uf: 'PR',
+    latitude: -23.305,
+    longitude: -51.17,
+    autorizaOpenMeteo: true,
+    sistemaIrrigacao: 'Gotejamento subsuperficial',
+    tipoSolo: 'Latossolo Roxo',
+    observacoes: 'Cultivo de milho safrinha com telemetria',
+    talhoes: [
+      {
+        id: 301,
+        nome: 'Talhão Central',
+        cultura: 'Milho',
+        areaHa: 60.0,
+        limiteUmidade: 40,
+        leituras: [{ id: 3, dataHora: '19/11/2026, 09:15:00', valorUmidade: 36 }]
+      }
+    ]
+  },
+  {
+    id: 4,
+    nome: 'Fazenda São Francisco',
+    municipio: 'Uberaba',
+    uf: 'MG',
+    latitude: -19.748,
+    longitude: -47.931,
+    autorizaOpenMeteo: true,
+    sistemaIrrigacao: 'Pivô Central Automatizado',
+    tipoSolo: 'Latossolo Vermelho-Amarelo',
+    observacoes: 'Cana-de-açúcar sustentável com monitoramento via satélite',
+    talhoes: [
+      {
+        id: 401,
+        nome: 'Talhão 01',
+        cultura: 'Cana-de-açúcar',
+        areaHa: 80.0,
+        limiteUmidade: 30,
+        leituras: [{ id: 4, dataHora: '19/11/2026, 08:00:00', valorUmidade: 29 }]
+      }
+    ]
+  },
+  {
+    id: 5,
+    nome: 'Fazenda Alvorada',
+    municipio: 'Rio Verde',
+    uf: 'GO',
+    latitude: -17.792,
+    longitude: -50.919,
+    autorizaOpenMeteo: true,
+    sistemaIrrigacao: 'Gotejamento de precisão',
+    tipoSolo: 'Latossolo Vermelho',
+    observacoes: 'Produção intensiva de soja e milho safrinha',
+    talhoes: [
+      {
+        id: 501,
+        nome: 'Talhão Alpha',
+        cultura: 'Soja',
+        areaHa: 120.0,
+        limiteUmidade: 35,
+        leituras: [{ id: 5, dataHora: '19/11/2026, 08:20:00', valorUmidade: 33 }]
+      }
+    ]
+  },
+  {
+    id: 6,
+    nome: 'Fazenda Terra Nova',
+    municipio: 'Cascavel',
+    uf: 'PR',
+    latitude: -24.957,
+    longitude: -53.459,
+    autorizaOpenMeteo: true,
+    sistemaIrrigacao: 'Aspersão em faixa',
+    tipoSolo: 'Latossolo Bruno',
+    observacoes: 'Produção integrada de trigo de inverno',
+    talhoes: [
+      {
+        id: 601,
+        nome: 'Setor Norte',
+        cultura: 'Trigo',
+        areaHa: 55.0,
+        limiteUmidade: 32,
+        leituras: [{ id: 6, dataHora: '19/11/2026, 09:00:00', valorUmidade: 30 }]
+      }
+    ]
+  },
+  {
+    id: 7,
+    nome: 'Fazenda Primavera',
+    municipio: 'Sorriso',
+    uf: 'MT',
+    latitude: -12.542,
+    longitude: -55.721,
+    autorizaOpenMeteo: true,
+    sistemaIrrigacao: 'Pivô Central',
+    tipoSolo: 'Latossolo Vermelho-Escuro',
+    observacoes: 'Grãos de alta performance com gestão hídrica CitizenTech',
+    talhoes: [
+      {
+        id: 701,
+        nome: 'Pivô 04',
+        cultura: 'Soja',
+        areaHa: 150.0,
+        limiteUmidade: 34,
+        leituras: [{ id: 7, dataHora: '19/11/2026, 07:30:00', valorUmidade: 31 }]
+      }
+    ]
+  },
+  {
+    id: 8,
+    nome: 'Fazenda Bela Vista',
+    municipio: 'Barreiras',
+    uf: 'BA',
+    latitude: -12.152,
+    longitude: -44.996,
+    autorizaOpenMeteo: true,
+    sistemaIrrigacao: 'Gotejamento automatizado',
+    tipoSolo: 'Neossolo Quartzarênico',
+    observacoes: 'Cultivo de algodão e grãos no Oeste Baiano',
+    talhoes: [
+      {
+        id: 801,
+        nome: 'Gleba Oeste',
+        cultura: 'Algodão',
+        areaHa: 75.0,
+        limiteUmidade: 30,
+        leituras: [{ id: 8, dataHora: '19/11/2026, 08:45:00', valorUmidade: 27 }]
       }
     ]
   }
