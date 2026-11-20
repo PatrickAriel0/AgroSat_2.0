@@ -1,0 +1,18 @@
+FIAP - GRADUACAO 2026/2
+GLOBAL SOLUTION - CITIZENTECH
+Disciplina: Front-End Design Engineering
+Turma: 1TDSPK
+Projeto: AgroSat - Irrigacao Inteligente com Dados Satelitais & Meteorologia
+
+INTEGRANTES DO GRUPO:
+1. Bruno Pires (Representante) - RM: 571202
+2. Patrick Ariel - RM: 573589
+3. Gustavo Correia - RM: 568745
+4. Gustavo Goncalves - RM: 572418
+5. Pedro Henrique - RM: 573547
+
+LINKS DA ENTREGA:
+- Vercel (Aplicacao no ar): https://agro-sat-2-0.vercel.app/
+- Repositorio GitHub: https://github.com/PatrickAriel0/AgroSat_2_0
+- API REST Java (Render): https://agrosat-api-eay6.onrender.com
+- Video Demonstrativo (YouTube): https://www.youtube.com/watch?v=j2KnKxjjMaM

@@ -9,10 +9,10 @@
 
 ## 📌 Links do Projeto
 
-* 🌐 **Aplicação no ar (Vercel):** `https://agro-sat-2-0.vercel.app/` *(substituir pela URL após deploy)*
+* 🌐 **Aplicação no ar (Vercel):** [https://agro-sat-2-0.vercel.app/](https://agro-sat-2-0.vercel.app/)
 * 🔗 **Repositório no GitHub:** [https://github.com/PatrickAriel0/AgroSat_2_0](https://github.com/PatrickAriel0/AgroSat_2_0)
-* ⚙️ **API RESTful Java (Render):** `https://agrosat-api-eay6.onrender.com`
-* 🎥 **Vídeo Demonstrativo (YouTube):** `https://youtu.be/SEU_VIDEO_AQUI` *(máximo 3 minutos)*
+* ⚙️ **API RESTful Java (Render):** [https://agrosat-api-eay6.onrender.com](https://agrosat-api-eay6.onrender.com)
+* 🎥 **Vídeo Demonstrativo (YouTube):** [https://www.youtube.com/watch?v=j2KnKxjjMaM](https://www.youtube.com/watch?v=j2KnKxjjMaM)
 
 ---
 
@@ -47,28 +47,28 @@ Historicamente, pequenos produtores rurais decidem irrigar baseando-se apenas na
 ## 🗺️ Mapa de Rotas e Telas da Aplicação
 
 ### 1. Fluxo de Autenticação e Onboarding
-* `/login` — Login com perfis duplos: Produtor Rural (`/painel-usuario`) ou Administrador da Cooperativa (`/admin-cooperativa`).
-* `/cadastro` — Cadastro guiado com **Seletor de Fazenda Interativo** (MapLibre), geocodificação de cidades, GPS e **Cartão de Solo IBGE (SiBCS)** com JSON payload em tempo real.
+* `/login` — Login com alternância de perfis: Produtor Rural (`/painel-usuario`) ou Administrador da Cooperativa (`/admin-cooperativa`).
+* `/cadastro` — Cadastro guiado com **Seletor de Fazenda Interativo** (MapLibre), geocodificação de cidades, GPS e **Cartão de Solo IBGE (SiBCS)** integrado com `POST /usuarios`.
 * `/planos` — Passo 2 de Onboarding com escolha de planos (Teste Grátis R$ 0 / 7 dias, Mensal R$ 49,90, Anual R$ 590).
 
-### 2. Painéis do Usuário & CitizenTech
+### 2. Painéis do Usuário & CitizenTech (Rotas Privadas)
 * `/painel-usuario` — Dashboard principal do produtor com 4 módulos integrados:
-  * `01 Nova plantação` (formulário com coordenadas).
-  * `02 Recomendação` (orientação imediata REGAR / NÃO REGAR com métricas).
-  * `03 Histórico de recomendações` (tabela de auditoria temporal).
-  * `04 Economia da fazenda` (cálculo de água poupada em litros e gráfico semanal).
-* `/recomendacao-hoje` — **Recomendação de hoje** com balanço hídrico agronômico detalhado (Método FAO-56: umidade, chuva prevista, evaporação e saldo líquido), confiança estatística e indicação de funcionamento offline.
-* `/mapa-plantacoes` — **Mapa de Plantações** com motor cartográfico MapLibre GL interativo, marcadores das propriedades rurais e ferramenta para marcação de novos talhões com coordenadas georreferenciadas.
-* `/admin-cooperativa` — Visão gerencial para cooperativas com indicadores agregados (litros poupados, alertas de seca) e metas de impacto nos **ODS 2 e ODS 13**.
+  * `01 Nova plantação` (formulário com coordenadas e sincronização de fazendas via API).
+  * `02 Recomendação` (orientação imediata REGAR / NÃO REGAR com métricas agronômicas).
+  * `03 Histórico de recomendações` (tabela de auditoria temporal persistida por usuário).
+  * `04 Economia da fazenda` (cálculo de água poupada em litros e economia financeira estimada).
+* `/recomendacao-hoje` — **Recomendação de hoje** com balanço hídrico agronômico detalhado (Método FAO-56: umidade, chuva prevista, evaporação e saldo líquido), granulometria e indicação de funcionamento offline.
+* `/mapa-plantacoes` — **Mapa de Plantações** com motor cartográfico MapLibre GL interativo, marcadores das propriedades rurais isoladas por usuário e ferramenta para marcação de novos talhões com coordenadas georreferenciadas.
+* `/admin-cooperativa` — Visão gerencial para cooperativas com indicadores agregados (litros poupados, alertas de seca), metas de impacto nos **ODS 2 e ODS 13** e módulo restrito para administradores gerenciarem contas (`DELETE /usuarios/{id}`).
 
 ### 3. Páginas Institucionais Obrigatórias
 * `/` — Página inicial com proposta de valor, métricas e CTA.
 * `/sobre` — Missão, visão, valores e alinhamento CitizenTech.
 * `/solucao` — Arquitetura de dados, sensoriamento remoto e simulador de decisões.
-* `/painel` & `/painel/fazenda/:id` — Gerenciador de fazendas e histórico de simulações.
-* `/faq` — Dúvidas frequentes de pequenos produtores.
-* `/contato` — Formulário com validação e canais de atendimento.
-* `/integrantes` & `/integrantes/:id` — Perfil individual dos 5 integrantes da equipe FIAP com fotos e RMs.
+* `/faq` — Dúvidas frequentes de pequenos produtores com busca dinâmica.
+* `/contato` — Formulário com validação em tempo real e canais de atendimento.
+* `/integrantes` & `/integrantes/:id` — Perfil individual dos 5 integrantes da equipe FIAP com fotos e RMs (rota dinâmica).
+* `*` — Página 404 personalizada para redirecionamento amigável de links quebrados.
 
 ---
 
@@ -90,40 +90,59 @@ A organização segue rigorosamente os padrões de componentização e separaç�
 
 ```
 AgroSat/
-├── public/                     # Recursos estáticos e imagens dos integrantes
+├── public/                       # Recursos estáticos e fotos dos integrantes
 │   └── assets/img/
 ├── src/
-│   ├── components/             # Componentes reutilizáveis
-│   │   ├── Header.tsx          # Navbar com menu mobile responsivo
-│   │   ├── Footer.tsx          # Rodapé com metadados acadêmicos e ODS
-│   │   └── DecisionEngine.tsx  # Motor analítico interativo de decisão
-│   ├── data/
-│   │   └── integrantesData.ts  # Dados completos da equipe
-│   ├── pages/                  # Páginas da aplicação SPA
-│   │   ├── Home.tsx            # Apresentação do projeto e simulador
-│   │   ├── Sobre.tsx           # Contexto do problema, ODS e stack
-│   │   ├── Solucao.tsx         # Comparativo antes x depois e métricas
-│   │   ├── FAQ.tsx             # Accordion com busca e filtros
-│   │   ├── Contato.tsx         # Formulário com validação e feedback
-│   │   ├── Integrantes.tsx     # Ficha de todos os integrantes
-│   │   ├── IntegranteDetalhe.tsx # Rota dinâmica com parâmetro (:id)
-│   │   ├── Painel.tsx          # Painel interativo com listagem e CRUD
-│   │   ├── CadastrarFazenda.tsx# Cadastro completo com múltiplos talhões
-│   │   └── FazendaDetalhe.tsx  # Detalhes climáticos e leituras de solo (:id)
-│   ├── services/               # Camada de serviços e integração de APIs
-│   │   ├── api.ts              # Integração com API Java REST via Fetch API
-│   │   └── weatherService.ts   # Integração com a API Open-Meteo
-│   ├── types/                  # Interfaces TypeScript dos modelos e DTOs
-│   │   └── index.ts
-│   ├── App.tsx                 # Configuração de rotas estáticas e dinâmicas
-│   ├── main.tsx                # Ponto de entrada React
-│   └── index.css               # Diretivas do Tailwind CSS e fontes
-├── index.html                  # HTML base com importação de fontes Google
-├── package.json                # Dependências e scripts de execução
-├── tailwind.config.js          # Configuração da paleta de cores e tipografia
-├── tsconfig.json               # Configurações do TypeScript
-├── vercel.json                 # Regras de rewrite SPA para deploy na Vercel
-└── vite.config.ts              # Configuração do Vite com React plugin
+│   ├── components/               # Componentes modulares e reutilizáveis
+│   │   ├── CartaoSolo.tsx        # Exibição pedológica e granulométrica SiBCS/IBGE
+│   │   ├── DecisionEngine.tsx    # Motor analítico interativo de decisão
+│   │   ├── Footer.tsx            # Rodapé institucional com metadados e ODS
+│   │   ├── Header.tsx            # Navbar com navegação e menu mobile responsivo
+│   │   └── SeletorFazenda.tsx    # Mapeamento interativo georreferenciado (MapLibre)
+│   ├── data/                     # Bases e constantes da aplicação
+│   │   ├── integrantesData.ts    # Ficha cadastral e links da equipe
+│   │   └── solosSibcs.ts         # Base pedológica do Sistema Brasileiro de Solos
+│   ├── pages/                    # Páginas e views da SPA
+│   │   ├── AdminCooperativa.tsx  # Visão da Cooperativa com métricas ODS e gestão
+│   │   ├── CadastrarFazenda.tsx  # Cadastro legado com múltiplos talhões
+│   │   ├── Cadastro.tsx          # Wizard de cadastro de produtor integrado à API
+│   │   ├── Contato.tsx           # Formulário institucional com validação em tempo real
+│   │   ├── FAQ.tsx               # Central de dúvidas com busca e acordeão dinâmico
+│   │   ├── FazendaDetalhe.tsx    # Detalhes climáticos e leituras de talhões (:id)
+│   │   ├── Home.tsx              # Landing page com simulador de decisão
+│   │   ├── IntegranteDetalhe.tsx # Rota dinâmica com parâmetro (:id) da equipe
+│   │   ├── Integrantes.tsx       # Grade com perfil dos 5 integrantes
+│   │   ├── Login.tsx             # Login com alternância Produtor / Cooperativa
+│   │   ├── MapaPlantacoes.tsx    # Mapa georreferenciado de plantações (MapLibre GL)
+│   │   ├── NotFound.tsx          # Página 404 personalizada para rotas inexistentes
+│   │   ├── Painel.tsx            # Painel com listagem e CRUD
+│   │   ├── PainelUsuario.tsx     # Dashboard do produtor (plantações, recomendação, economia)
+│   │   ├── Planos.tsx            # Escolha e upgrade de planos de assinatura
+│   │   ├── RecomendacaoHoje.tsx  # Recomendação diária com balanço hídrico FAO-56
+│   │   ├── Sobre.tsx             # Contexto do problema, ODS e arquitetura
+│   │   └── Solucao.tsx           # Detalhamento técnico da solução CitizenTech
+│   ├── services/                 # Integração de serviços externos (Fetch API nativa)
+│   │   ├── api.ts                # Comunicação RESTful com a API Java Spring Boot
+│   │   ├── localizacao.ts        # Geocodificação reversa e localização OpenStreetMap
+│   │   ├── solo.ts               # Classificação de solo SiBCS / SoilGrids
+│   │   └── weatherService.ts     # Previsão meteorológica 72h via Open-Meteo
+│   ├── types/                    # Modelos e interfaces TypeScript estritos
+│   │   ├── index.ts              # Tipos centrais: Fazenda, Talhão, Leitura, Usuario
+│   │   ├── localizacao.ts        # Tipos de pontos cartográficos e coordenadas
+│   │   └── solo.ts               # Tipos de textura e atributos do solo
+│   ├── utils/                    # Funções utilitárias e algoritmos agronômicos
+│   │   └── recomendacao.ts       # Algoritmo de balanço hídrico e decisão FAO-56
+│   ├── App.tsx                   # Configuração central de rotas públicas e privadas
+│   ├── main.tsx                  # Ponto de inicialização do React DOM
+│   ├── index.css                 # Configuração do Tailwind CSS e tipografia
+│   └── vite-env.d.ts             # Declarações de ambiente do Vite
+├── index.html                    # Estrutura HTML base e fontes Google Fonts
+├── integrantes.txt               # Identificação formal da equipe exigida para o ZIP
+├── package.json                  # Dependências e scripts de execução
+├── tailwind.config.js            # Configuração de temas, cores e breakpoints
+├── tsconfig.json                 # Configurações do compilador TypeScript
+├── vercel.json                   # Regras de rewrite SPA para deploy na Vercel
+└── vite.config.ts                # Configuração do bundler Vite
 ```
 
 ---
@@ -177,7 +196,19 @@ A comunicação com o backend em Spring Boot segue as boas práticas RESTful uti
 * **POST `/fazendas`**: Cadastro de nova fazenda e seus respectivos talhões.
 * **DELETE `/fazendas/{id}`**: Exclusão de propriedade rural.
 * **POST `/fazendas/{id}/talhoes/{talhaoId}/leituras`**: Registro de nova leitura de umidade do solo.
-* **Resiliência e Fallback:** Caso a API remota no Render esteja iniciando ou offline durante a avaliação, o sistema conta com persistência local espelhada, garantindo que o avaliador nunca presencie tela quebrada ou perda de dados.
+* **GET `/usuarios`**: Consulta e auditoria dos usuários e produtores cadastrados.
+* **POST `/usuarios`**: Criação de novo produtor integrado ao fluxo de cadastro.
+* **DELETE `/usuarios/{id}`**: Exclusão administrativa de contas na API Java.
+* **Resiliência e Fallback:** Caso a API remota no Render esteja iniciando ou em repouso durante a avaliação, o sistema conta com persistência local espelhada, garantindo que o avaliador nunca presencie tela quebrada ou perda de dados.
+
+---
+
+## 📞 Contato e Atendimento
+
+Para dúvidas, parcerias ou suporte a cooperativas e pequenos produtores:
+* 📧 **E-mail Institucional:** `agrosat.fiap@gmail.com`
+* 📍 **Instituição:** FIAP — Campus Paulista / Aclimação
+* 💬 **Atendimento Online:** Página de Contato integrada na aplicação (`/contato`)
 
 ---
 
